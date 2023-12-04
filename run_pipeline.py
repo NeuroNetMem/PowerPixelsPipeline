@@ -4,7 +4,7 @@ Created on Wed Apr  5 14:02:41 2023 by Guido Meijer
 """
 
 import os
-from os.path import join, split, isfile, isdir
+from os.path import join, split, isfile, isdir, dirname, realpath
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -14,53 +14,37 @@ from pathlib import Path
 import json
 
 from ibllib.ephys import ephysqc
+from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSyncRegisterRaw,
                                       EphysPulses)
-from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 
 import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
 from spikeinterface.sorters import run_sorter
-from spikeinterface.core import extract_waveforms
-from spikeinterface.postprocessing import compute_spike_amplitudes, compute_correlograms
-from spikeinterface.qualitymetrics import compute_quality_metrics
-from spikeinterface.exporters import export_report
-
-import matlab.engine
 
 
-# Set data path
-SPIKE_SORTER = 'kilosort2_5'  
-IDENTIFIER = ''  # will be appended to SPIKE_SORTER when saving 
-DATA_FOLDER = 'D:\\NeuropixelData'
-BOMBCELL_PATH = 'C:\\Users\\Neuropixel\\Documents\\MATLAB\\bombcell'
-MATLAB_NPY_PATH = 'C:\\Users\\Neuropixel\\Documents\\MATLAB\\npy-matlab\\npy-matlab'
-
-# Set sync channel
-nidq_sync_dictionary = {
-    "SYSTEM": "3B",
-    "SYNC_WIRING_DIGITAL": {
-        "P0.0": "barcode",
-        "P0.3": "imec_sync",
-    },
-}
-
-probe_sync_dictionary = {
-    "SYSTEM": "3B",
-    "SYNC_WIRING_DIGITAL": {
-        "P0.6": "imec_sync"
-    }
-}
+# Load in setting files
+with open(join(dirname(realpath(__file__)), 'settings.json'), 'r') as openfile:
+    settings_dict = json.load(openfile)
+    
+with open(join(dirname(realpath(__file__)), 'nidq.wiring.json'), 'r') as openfile:
+    nidq_sync_dictionary = json.load(openfile)
+    
+with open(join(dirname(realpath(__file__)),
+               f'{nidq_sync_dictionary["SYSTEM"]}.wiring.json'), 'r') as openfile:
+    probe_sync_dictionary = json.load(openfile)
 
 # Initialize Matlab engine for bombcell package
-eng = matlab.engine.start_matlab()
-eng.addpath(r"{}".format(os.path.dirname(os.path.realpath(__file__))), nargout=0)
-eng.addpath(eng.genpath(BOMBCELL_PATH))
-eng.addpath(MATLAB_NPY_PATH)
+if settings_dict['RUN_BOMBCELL']:
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
+    eng.addpath(r"{}".format(os.path.dirname(os.path.realpath(__file__))), nargout=0)
+    eng.addpath(eng.genpath(settings_dict['BOMBCELL_PATH']))
+    eng.addpath(settings_dict['MATLAB_NPY_PATH'])
 
 # Search for spikesort_me.flag
 print('Looking for spikesort_me.flag..')
-for root, directory, files in os.walk(DATA_FOLDER):
+for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
     if 'spikesort_me.flag' in files:
         session_path = Path(root)
         print(f'\nFound spikesort_me.flag in {root}')
@@ -132,8 +116,9 @@ for root, directory, files in os.walk(DATA_FOLDER):
             # Run spike sorting
             try:
                 print(f'Starting {split(this_probe)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
-                sort = run_sorter(SPIKE_SORTER, rec,
-                                  output_folder=os.path.join(this_probe, SPIKE_SORTER + IDENTIFIER),
+                sort = run_sorter(settings_dict['SPIKE_SORTER'], rec,
+                                  output_folder=os.path.join(
+                                      this_probe, settings_dict['SPIKE_SORTER'] + settings_dict['IDENTIFIER']),
                                   verbose=True, docker_image=True)
             except Exception as err:
                 print(err)
@@ -146,37 +131,41 @@ for root, directory, files in os.walk(DATA_FOLDER):
                 # Continue with next recording
                 continue
             
-            # Run Bombcell
+            # Get AP and meta data files
             orig_ap_file = glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.bin'))
             meta_file = glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.meta'))
-            print('Running Bombcell')
-            eng.run_bombcell(join(this_probe, SPIKE_SORTER+IDENTIFIER, 'sorter_output'),
-                             orig_ap_file[0],
-                             meta_file[0],  
-                             join(this_probe, SPIKE_SORTER+IDENTIFIER, 'bombcell_qc'),
-                             this_probe,
-                             nargout=0)
+            
+            # Run Bombcell
+            if settings_dict['RUN_BOMBCELL']:
+                print('Running Bombcell')
+                eng.run_bombcell(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output'),
+                                 orig_ap_file[0],
+                                 meta_file[0],  
+                                 join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'bombcell_qc'),
+                                 this_probe,
+                                 nargout=0)
             
             # Export spike sorting to alf files
             if not isdir(join(root, this_probe[-7:])):
                 os.mkdir(join(root, this_probe[-7:]))
-            ks2_to_alf(Path(join(this_probe, SPIKE_SORTER+IDENTIFIER, 'sorter_output')),
+            ks2_to_alf(Path(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output')),
                        Path(join(root, 'raw_ephys_data', this_probe[-7:])),
                        Path(join(root, this_probe[-7:])))
             
             # Add bombcell QC to alf folder
-            shutil.copy(join(this_probe, SPIKE_SORTER+IDENTIFIER, 'sorter_output', 'cluster_bc_unitType.tsv'),
-                        join(root, this_probe[-7:], 'cluster_bc_unitType.tsv'))
-            bc_unittype = pd.read_csv(join(root, this_probe[-7:], 'cluster_bc_unitType.tsv'), sep='\t')
-            np.save(join(root, this_probe[-7:], 'clusters.bcUnitType'), bc_unittype['bc_unitType'])
+            if settings_dict['RUN_BOMBCELL']:
+                shutil.copy(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output', 'cluster_bc_unitType.tsv'),
+                            join(root, this_probe[-7:], 'cluster_bc_unitType.tsv'))
+                bc_unittype = pd.read_csv(join(root, this_probe[-7:], 'cluster_bc_unitType.tsv'), sep='\t')
+                np.save(join(root, this_probe[-7:], 'clusters.bcUnitType'), bc_unittype['bc_unitType'])
             
             # Synchronize spike sorting to nidq clock
             ap_file = glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.cbin'))[0]
             sync_spike_sorting(Path(ap_file), Path(join(root, this_probe[-7:])))
             
             # Delete copied recording.dat file
-            if isfile(join(this_probe, SPIKE_SORTER+IDENTIFIER, 'sorter_output', 'recording.dat')):
-                os.remove(join(this_probe, SPIKE_SORTER+IDENTIFIER, 'sorter_output', 'recording.dat'))
+            if isfile(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output', 'recording.dat')):
+                os.remove(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output', 'recording.dat'))
                 
             # Compress raw data
             if len(glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.cbin'))) == 0:
@@ -194,18 +183,5 @@ for root, directory, files in os.walk(DATA_FOLDER):
             
             print(f'Done! At {datetime.now().strftime("%H:%M")}')
         
-        
         # Delete spikesort_me.flag
-        #os.remove(os.path.join(root, 'spikesort_me.flag'))
-             
-            
-            
-            
-            
-            
-        
-        
-         
-         
-         
-  
+        os.remove(os.path.join(root, 'spikesort_me.flag'))

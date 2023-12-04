@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec  4 10:34:20 2023
-By Guido Meijer
-
 Generate settings and wiring JSON files to be used in the Megazord pipeline.
 
 Settings JSON file
@@ -26,7 +23,7 @@ MATLAB_NPY_PATH (only necessary when RUN_BOMBCELL is True)
 NIDQ wiring JSON file
 ------------------------
 SYSTEM
-    Should not be changed from 3B (otherwise known as 1.0). Currenlty Megazord only supports 
+    Should not be changed from 3B (otherwise known as 1.0). Currently Megazord only supports 
     Neuropixel 1.0
 SYNC_WIRING_DIGITAL
     Dictionary with all the digital synchronization channels on the BNC breakout box that should be
@@ -38,6 +35,8 @@ SYNC_WIRING_ANALOG
 Probe wiring JSON file
 ------------------------
 Should not be changed
+
+Created on Mon Dec 4 2023 by Guido Meijer
 """
 
 import json
