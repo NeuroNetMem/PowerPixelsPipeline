@@ -8,17 +8,9 @@ Created on Mon Aug 21 11:01:06 2023
 from os import mkdir
 from os.path import join, isdir, isfile
 from datetime import date
-import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-e", "--ephys", help="Ephys session", action='store_true')
-args = parser.parse_args()
-
-# Set path to save data
-if args.ephys:
-    PATH = 'D:\\NeuropixelData'  # SSD
-else:
-    PATH = 'K:\\Subjects'
+# Get data folder path
+f = open('data.json')
 
 # Get date of today
 this_date = date.today().strftime('%Y%m%d')
