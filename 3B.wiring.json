@@ -1,6 +1,0 @@
-{
-    "SYSTEM": "3B",
-    "SYNC_WIRING_DIGITAL": {
-        "P0.6": "imec_sync"
-    }
-}
