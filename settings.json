@@ -1,8 +1,0 @@
-{
-    "SPIKE_SORTER": "kilosort2_5",
-    "IDENTIFIER": "",
-    "DATA_FOLDER": "C:\\path\\to\\data",
-    "RUN_BOMBCELL": true,
-    "BOMBCELL_PATH": "C:\\path\\to\\bombcell\\repo",
-    "MATLAB_NPY_PATH": "C:\\path\\to\\npy-matlab\\repo"
-}
