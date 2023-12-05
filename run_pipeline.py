@@ -22,7 +22,6 @@ import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
 from spikeinterface.sorters import run_sorter, get_default_sorter_params
 
-
 # Load in setting files
 with open(join(dirname(realpath(__file__)), 'settings.json'), 'r') as openfile:
     settings_dict = json.load(openfile)
@@ -31,6 +30,9 @@ with open(join(dirname(realpath(__file__)), 'nidq.wiring.json'), 'r') as openfil
 with open(join(dirname(realpath(__file__)),
                f'{nidq_sync_dictionary["SYSTEM"]}.wiring.json'), 'r') as openfile:
     probe_sync_dictionary = json.load(openfile)
+
+# Get run identifier string
+id_str = '_' + settings_dict['IDENTIFIER']
     
 # Load in spike sorting parameters
 if isfile(join(dirname(realpath(__file__)), f'{settings_dict["SPIKE_SORTER"]}_params.json')):
@@ -84,32 +86,35 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
         # Create nidq sync file
         EphysSyncRegisterRaw(session_path=session_path, sync_collection='raw_ephys_data').run()
                 
+        # Loop over multiple probes 
         probes = glob(join(root, 'raw_ephys_data', 'probe*'))
-        for i, this_probe in enumerate(probes):
+        for i, probe_path in enumerate(probes):
             
-            if isdir(join(root, this_probe[-7:])):
+            # Check if probe is already processed
+            this_probe = split(probe_path)[1]
+            if isdir(join(root, this_probe + id_str)):
                 print('Probe already processed, moving on')
                 continue
             
             # Create probe sync file
-            task = EphysSyncPulses(session_path=session_path, sync='nidq', pname=this_probe[-7:],
+            task = EphysSyncPulses(session_path=session_path, sync='nidq', pname=this_probe,
                                    sync_ext='bin', sync_namespace='spikeglx',
                                    sync_collection='raw_ephys_data',
                                    device_collection='raw_ephys_data')
             task.run()
-            task = EphysPulses(session_path=session_path, pname=this_probe[-7:],
+            task = EphysPulses(session_path=session_path, pname=this_probe,
                                sync_collection='raw_ephys_data',
                                device_collection='raw_ephys_data')
             task.run()
             
             # Compute raw ephys QC metrics
-            if not isfile(join(this_probe, '_iblqc_ephysSpectralDensityAP.power.npy')):
+            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
                 task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
-                task.probe_path = Path(this_probe)
+                task.probe_path = Path(probe_path)
                 task.run()
             
             # Load in recording            
-            rec = se.read_spikeglx(this_probe, stream_id=f'imec{split(this_probe)[-1][-1]}.ap')
+            rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
                                     
             # Pre-process 
             rec = spre.highpass_filter(rec)
@@ -120,16 +125,19 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                             
             # Run spike sorting
             try:
-                print(f'Starting {split(this_probe)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
-                sort = run_sorter(settings_dict['SPIKE_SORTER'], rec,
-                                  output_folder=os.path.join(
-                                      this_probe, settings_dict['SPIKE_SORTER'] + settings_dict['IDENTIFIER']),
-                                  verbose=True, docker_image=True, **sorter_params)
+                print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                sort = run_sorter(
+                    settings_dict['SPIKE_SORTER'],
+                    rec,
+                    output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
+                    verbose=True,
+                    docker_image=True,
+                    **sorter_params)
             except Exception as err:
-                print(err)
                 
                 # Log error to disk
-                logf = open(os.path.join(this_probe, 'error_log.txt'), 'w')
+                print(err)
+                logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
                 logf.write(str(err))
                 logf.close()
                 
@@ -137,45 +145,64 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 continue
             
             # Get AP and meta data files
-            orig_ap_file = glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.bin'))
-            meta_file = glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.meta'))
+            orig_ap_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))[0]
+            meta_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.meta'))[0]
+            
+            # Get folder paths
+            sorter_out_path = Path(join(probe_path,
+                                        settings_dict['SPIKE_SORTER'] + id_str,
+                                        'sorter_output'))
+            alf_path = Path(join(root, this_probe))
             
             # Run Bombcell
             if settings_dict['RUN_BOMBCELL']:
                 print('Running Bombcell')
-                eng.run_bombcell(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output'),
-                                 orig_ap_file[0],
-                                 meta_file[0],  
-                                 join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'bombcell_qc'),
-                                 this_probe,
+                eng.run_bombcell(sorter_out_path,
+                                 orig_ap_file,
+                                 meta_file,  
+                                 join(split(sorter_out_path)[0], 'bombcell_qc'),
+                                 probe_path,
                                  nargout=0)
             
             # Export spike sorting to alf files
-            if not isdir(join(root, this_probe[-7:])):
-                os.mkdir(join(root, this_probe[-7:]))
-            ks2_to_alf(Path(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output')),
-                       Path(join(root, 'raw_ephys_data', this_probe[-7:])),
-                       Path(join(root, this_probe[-7:])))
+            if not isdir(join(root, this_probe)):
+                os.mkdir(join(root, this_probe))
+            ks2_to_alf(sorter_out_path,
+                       Path(join(root, 'raw_ephys_data', this_probe)),
+                       alf_path)
             
             # Add bombcell QC to alf folder
             if settings_dict['RUN_BOMBCELL']:
-                shutil.copy(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output', 'cluster_bc_unitType.tsv'),
-                            join(root, this_probe[-7:], 'cluster_bc_unitType.tsv'))
-                bc_unittype = pd.read_csv(join(root, this_probe[-7:], 'cluster_bc_unitType.tsv'), sep='\t')
-                np.save(join(root, this_probe[-7:], 'clusters.bcUnitType'), bc_unittype['bc_unitType'])
+                shutil.copy(join(sorter_out_path, 'cluster_bc_unitType.tsv'),
+                            join(alf_path, 'cluster_bc_unitType.tsv'))
+                bc_unittype = pd.read_csv(join(alf_path, 'cluster_bc_unitType.tsv'), sep='\t')
+                np.save(join(alf_path, 'clusters.bcUnitType'), bc_unittype['bc_unitType'])
             
             # Synchronize spike sorting to nidq clock
-            ap_file = glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.cbin'))[0]
-            sync_spike_sorting(Path(ap_file), Path(join(root, this_probe[-7:])))
+            ap_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))[0]
+            sync_spike_sorting(Path(ap_file), alf_path)
+            
+            # Extract digital sync timestamps
+            sync_times = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
+            sync_polarities = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
+            sync_channels = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.channels.npy'))
+            for ii, ch_name in enumerate(nidq_sync_dictionary['SYNC_WIRING_DIGITAL'].keys()):
+                nidq_pulses = sync_times[(sync_channels == int(ch_name[-1])) & (sync_polarities == 1)]
+                np.save(join(root, nidq_sync_dictionary['SYNC_WIRING_DIGITAL'][ch_name] + '.times.npy'),
+                        nidq_pulses)
             
             # Delete copied recording.dat file
-            if isfile(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output', 'recording.dat')):
-                os.remove(join(this_probe, settings_dict['SPIKE_SORTER']+settings_dict['IDENTIFIER'], 'sorter_output', 'recording.dat'))
+            if isfile(join(probe_path,
+                           settings_dict['SPIKE_SORTER'] + id_str,
+                           'sorter_output', 'recording.dat')):
+                os.remove(join(probe_path,
+                               settings_dict['SPIKE_SORTER'] + id_str,
+                               'sorter_output', 'recording.dat'))
                 
             # Compress raw data
-            if len(glob(join(root, 'raw_ephys_data', this_probe[-7:], '*ap.cbin'))) == 0:
+            if len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0:
                 print('Compressing raw binary file')
-                task = EphysCompressNP1(session_path=Path(root), pname=this_probe[-7:])
+                task = EphysCompressNP1(session_path=Path(root), pname=this_probe)
                 task.run()
                 
             # Delete original raw data
