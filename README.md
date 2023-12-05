@@ -27,11 +27,11 @@ The pipeline goes through the following steps:
 The best is to make a conda or mamba environment for the Pixelzord pipeline. Clone this repository and navigate to it and do ```conda env create -f environment.yml``` or ```mamba env create -f environment.yml``` depending on whether you use anaconda or mamba forge.
 
 ### Docker
-SpikeInterface uses Docker to launch spike sorters in a docker container, this is great because it means that you don't need to tinker with grapic card drivers or have MATLAB installed. Instructions to set up Docker on Windows:
-- Install Docker Desktop (https://www.docker.com/products/docker-desktop/)
-- Create an account on Docker Hub (https://hub.docker.com/)
-- Install WSL2
-- Open a PowerShell terminal and type ```wsl --install```
+SpikeInterface uses Docker to launch spike sorters in a docker container, this is great because it means that you don't need to tinker with grapic card drivers or have MATLAB installed. Instructions to set up Docker on Windows
+1. Install Docker Desktop (https://www.docker.com/products/docker-desktop/)
+2. Create an account on Docker Hub (https://hub.docker.com/)
+3. Install WSL2
+4. Open a PowerShell terminal and type ```wsl --install```
 
 ### MATLAB 
 If you want to use the Bombcell (can be turned off in settings) you need to have MATLAB installed and you need to set up the MATLAB python engine so that python can run the toolbox. Follow these instructions to set up the engine (tested with MATLAB 20223b): https://nl.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html
@@ -41,14 +41,18 @@ For manual curation of the spike sorting output you need to install Phy, follow 
 
 ## First time use
 
-After installing all the necessary components you can set up your pipeline for use. 
-- Activate your environment ```conda activate pixelzord```
-- Navigate to the cloned repository
-- Generate setting JSON files ```python generate_setting_files.py```
-- Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py)
-- Open nidq.wiring.json and fill in the synchronization channels you have in use
+After installing all the necessary components you can set up your pipeline for use.
+1. Activate your environment ```conda activate pixelzord```
+2. Navigate to the cloned repository
+3. Generate setting JSON files ```python generate_setting_files.py```
+4. Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py)
+5. Open nidq.wiring.json and fill in the synchronization channels you have in use
 
 ## Usage workflow
+
+1. Before starting a recording prepare the folder structure by doing ```python prepare_sessions.py```, this will create a folder for your animal, the recording day, and several folders for raw data. It also creates a spikesort_me.flag that will be used by the pipeline to find recordings that need to be spike sorted.
+2. Perform your Neuropixel recording and make sure the output folder of SpikeGLX is the created raw_ephys_data folder.
+3. Start the pipeline by doing ```python run_pipeline.py```, this will search your data folder for sessions that have the spikesort_me.flag and process them. The pipeline will take a long time to run so best to do it overnight. 
 
 
 
