@@ -20,19 +20,25 @@ from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSy
 
 import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
-from spikeinterface.sorters import run_sorter
+from spikeinterface.sorters import run_sorter, get_default_sorter_params
 
 
 # Load in setting files
 with open(join(dirname(realpath(__file__)), 'settings.json'), 'r') as openfile:
     settings_dict = json.load(openfile)
-    
 with open(join(dirname(realpath(__file__)), 'nidq.wiring.json'), 'r') as openfile:
     nidq_sync_dictionary = json.load(openfile)
-    
 with open(join(dirname(realpath(__file__)),
                f'{nidq_sync_dictionary["SYSTEM"]}.wiring.json'), 'r') as openfile:
     probe_sync_dictionary = json.load(openfile)
+    
+# Load in spike sorting parameters
+if isfile(join(dirname(realpath(__file__)), f'{settings_dict["SPIKE_SORTER"]}_params.json')):
+    with open(join(dirname(realpath(__file__)),
+                   f'{settings_dict["SPIKE_SORTER"]}_params.json'), 'r') as openfile:
+        sorter_params = json.load(openfile)
+else:
+    sorter_params = get_default_sorter_params(settings_dict['SPIKE_SORTER'])
 
 # Initialize Matlab engine for bombcell package
 if settings_dict['RUN_BOMBCELL']:
@@ -111,15 +117,14 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             bad_channel_ids, all_channels = spre.detect_bad_channels(rec)
             rec = spre.interpolate_bad_channels(rec, bad_channel_ids)
             rec = spre.highpass_spatial_filter(rec)
-            #rec = spre.correct_motion(rec)
-                
+                            
             # Run spike sorting
             try:
                 print(f'Starting {split(this_probe)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
                 sort = run_sorter(settings_dict['SPIKE_SORTER'], rec,
                                   output_folder=os.path.join(
                                       this_probe, settings_dict['SPIKE_SORTER'] + settings_dict['IDENTIFIER']),
-                                  verbose=True, docker_image=True)
+                                  verbose=True, docker_image=True, **sorter_params)
             except Exception as err:
                 print(err)
                 
