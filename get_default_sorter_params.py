@@ -18,6 +18,6 @@ args = parser.parse_args()
 sorter_params = get_default_sorter_params(args.sorter)
 
 # Save to disk
-with open(join(dirname(realpath(__file__)),
-               'spikesorter_param_files', f'{args.sorter}_params.json'), 'w') as outfile:
+with open(join(dirname(realpath(__file__)), 'spikesorter_param_files',
+               f'{args.sorter}_params.json'), 'w') as outfile:
     outfile.write(json.dumps(sorter_params, indent=4))

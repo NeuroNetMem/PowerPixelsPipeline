@@ -40,7 +40,8 @@ Created on Mon Dec 4 2023 by Guido Meijer
 """
 
 import json
-from os.path import join, dirname, realpath
+from os import mkdir
+from os.path import join, dirname, realpath, isdir
  
 # Settings JSON file
 settings_dict = {
@@ -74,6 +75,8 @@ probe_3B_wiring_dict = {
 }
 
 # Save JSON files to repository directory
+if not isdir(join(dirname(realpath(__file__)), 'wiring_files')):
+    mkdir(join(dirname(realpath(__file__)), 'wiring_files'))
 with open(join(dirname(realpath(__file__)), 'settings.json'), 'w') as outfile:
     outfile.write(json.dumps(settings_dict, indent=4))
 with open(join(dirname(realpath(__file__)), 'wiring_files', 'nidq.wiring.json'), 'w') as outfile:
