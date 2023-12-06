@@ -47,6 +47,7 @@ After installing all the necessary components you can set up your pipeline for u
 3. Generate setting JSON files ```python generate_setting_files.py```
 4. Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py)
 5. Open nidq.wiring.json and fill in the synchronization channels you have in use
+6. (Optional) Generate spike sorter setting file ```python get_default_sorter_params.py -s SPIKE_SORTER``` in which SPIKE_SORTER should be the sorter you want to use (see https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters for all options). Adjust the spike sorter settings by editing the generated JSON file. For example, when using Kilosort it's recommended to set minfr_goodchannels to 0.  
 
 ## Usage workflow
 
