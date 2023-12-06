@@ -1,1 +1,4 @@
-*.json
+
+wiring_files/
+
+settings.json
