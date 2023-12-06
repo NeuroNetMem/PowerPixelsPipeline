@@ -24,10 +24,16 @@ The pipeline goes through the following steps:
 
 ## Installation
 
-The best is to make a conda or mamba environment for the Pixelzord pipeline. Clone this repository and navigate to it and do ```conda env create -f environment.yml``` or ```mamba env create -f environment.yml``` depending on whether you use anaconda or mamba forge.
+It is recommended to install Pixelzord in an Anaconda or Miniforge environment.
+1. Install Anaconda (https://www.anaconda.com/) or Miniforge (https://github.com/conda-forge/miniforge) - Miniforge is the recommended option
+2. Open the Anaconda or Miniforge prompt
+3. Install git by typing ```conda install git``` or ```mamba install git``` depending on whether you use Anaconda or Miniforge, respectively
+4. Navigate to the location on your computer you want the repository to be and clone the repository by typing ```git clone https://github.com/NeuroNetMem/PixelzordPipeline```
+5. Create the environment from the provided YML file by typing ```conda env create -f environment.yml``` or ```mamba env create -f environment.yml```
+6. You can now activate the environment by typing ```conda activate pixelzord```
 
 ### Docker
-SpikeInterface uses Docker to launch spike sorters in a docker container, this is great because it means that you don't need to tinker with grapic card drivers or have MATLAB installed. Instructions to set up Docker on Windows
+SpikeInterface uses Docker to launch spike sorters in a docker container, this is great because it means that you don't need to tinker with grapic card drivers or have MATLAB installed. Instructions to set up Docker on Windows:
 1. Install Docker Desktop (https://www.docker.com/products/docker-desktop/)
 2. Create an account on Docker Hub (https://hub.docker.com/)
 3. Install WSL2
@@ -42,12 +48,15 @@ For manual curation of the spike sorting output you need to install Phy, follow 
 ## First time use
 
 After installing all the necessary components you can set up your pipeline for use.
-1. Activate your environment ```conda activate pixelzord```
-2. Navigate to the cloned repository
-3. Generate setting JSON files ```python generate_setting_files.py```
-4. Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py)
-5. Open nidq.wiring.json and fill in the synchronization channels you have in use
-6. (Optional) Generate spike sorter setting file ```python get_default_sorter_params.py -s SPIKE_SORTER``` in which SPIKE_SORTER should be the sorter you want to use (see https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters for all options). Adjust the spike sorter settings by editing the generated JSON file. For example, when using Kilosort it's recommended to set minfr_goodchannels to 0.  
+1. Open your Anaconda or Miniforge prompt.
+2. Activate your environment by typing ```conda activate pixelzord```
+3. Navigate to the cloned repository
+4. Generate setting JSON files ```python generate_json_files.py```
+5. Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py)
+6. Open nidq.wiring.json and fill in the synchronization channels you have in use
+7. (Optional) If you are planning on using a spike sorter other than Kilosort 2.5 or 3, you can generate the parameter file for this sorter by typing ```python get_default_sorter_params.py -s SPIKE_SORTER``` in which SPIKE_SORTER should be the sorter you want to use (see https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters for all options). The default parameter file for your sorter will appear in the spikesorter_param_file folder and you can adjust any parameters you wish in there.
+
+*Recommended parameters for Kilosort 2.5 and 3 are provided in the spikesorter_param_files folder, you can change these if you want but bear in mind that, because they come with the repository, they will be overwritten when you pull any new changes from the repo.*
 
 ## Usage workflow
 
