@@ -113,8 +113,12 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 task.probe_path = Path(probe_path)
                 task.run()
             
-            # Load in recording            
-            rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
+            # Load in recording         
+            if len(glob(join(probe_path, '*.cbin'))) > 0:
+                # Recording is already compressed by a previous run, loading in compressed data
+                rec = se.read_cbin_ibl(probe_path)
+            else:
+                rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
                                     
             # Pre-process 
             rec = spre.highpass_filter(rec)
@@ -145,20 +149,20 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 continue
             
             # Get AP and meta data files
-            orig_ap_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))[0]
+            ap_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.*bin'))[0]
             meta_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.meta'))[0]
             
             # Get folder paths
             sorter_out_path = Path(join(probe_path,
                                         settings_dict['SPIKE_SORTER'] + id_str,
                                         'sorter_output'))
-            alf_path = Path(join(root, this_probe))
+            alf_path = Path(join(root, this_probe + id_str))
             
             # Run Bombcell
             if settings_dict['RUN_BOMBCELL']:
                 print('Running Bombcell')
-                eng.run_bombcell(sorter_out_path,
-                                 orig_ap_file,
+                eng.run_bombcell(str(sorter_out_path),
+                                 ap_file,
                                  meta_file,  
                                  join(split(sorter_out_path)[0], 'bombcell_qc'),
                                  probe_path,
@@ -179,7 +183,6 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 np.save(join(alf_path, 'clusters.bcUnitType'), bc_unittype['bc_unitType'])
             
             # Synchronize spike sorting to nidq clock
-            ap_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))[0]
             sync_spike_sorting(Path(ap_file), alf_path)
             
             # Extract digital sync timestamps
@@ -187,17 +190,15 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             sync_polarities = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
             sync_channels = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.channels.npy'))
             for ii, ch_name in enumerate(nidq_sync_dictionary['SYNC_WIRING_DIGITAL'].keys()):
+                if ch_name == 'imec_sync':
+                    continue
                 nidq_pulses = sync_times[(sync_channels == int(ch_name[-1])) & (sync_polarities == 1)]
                 np.save(join(root, nidq_sync_dictionary['SYNC_WIRING_DIGITAL'][ch_name] + '.times.npy'),
                         nidq_pulses)
             
             # Delete copied recording.dat file
-            if isfile(join(probe_path,
-                           settings_dict['SPIKE_SORTER'] + id_str,
-                           'sorter_output', 'recording.dat')):
-                os.remove(join(probe_path,
-                               settings_dict['SPIKE_SORTER'] + id_str,
-                               'sorter_output', 'recording.dat'))
+            if isfile(join(sorter_out_path, 'recording.dat')):
+                os.remove(join(sorter_out_path, 'recording.dat'))
                 
             # Compress raw data
             if len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0:
@@ -206,9 +207,10 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 task.run()
                 
             # Delete original raw data
-            if len(orig_ap_file) == 1:
+            if ((len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0)
+                and (len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))) == 1)):
                 try:
-                    os.remove(orig_ap_file[0])
+                    os.remove(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))[0])
                 except:
                     print('Could not remove uncompressed ap bin file, delete manually')
                     continue
