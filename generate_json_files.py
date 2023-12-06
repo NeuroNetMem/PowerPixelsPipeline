@@ -76,7 +76,7 @@ probe_3B_wiring_dict = {
 # Save JSON files to repository directory
 with open(join(dirname(realpath(__file__)), 'settings.json'), 'w') as outfile:
     outfile.write(json.dumps(settings_dict, indent=4))
-with open(join(dirname(realpath(__file__)), 'nidq.wiring.json'), 'w') as outfile:
+with open(join(dirname(realpath(__file__)), 'wiring_files', 'nidq.wiring.json'), 'w') as outfile:
     outfile.write(json.dumps(nidq_wiring_dict, indent=4))
-with open(join(dirname(realpath(__file__)), '3B.wiring.json'), 'w') as outfile:
+with open(join(dirname(realpath(__file__)), 'wiring_files', '3B.wiring.json'), 'w') as outfile:
     outfile.write(json.dumps(probe_3B_wiring_dict, indent=4))

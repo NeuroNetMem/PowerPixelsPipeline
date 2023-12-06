@@ -25,9 +25,9 @@ from spikeinterface.sorters import run_sorter, get_default_sorter_params
 # Load in setting files
 with open(join(dirname(realpath(__file__)), 'settings.json'), 'r') as openfile:
     settings_dict = json.load(openfile)
-with open(join(dirname(realpath(__file__)), 'nidq.wiring.json'), 'r') as openfile:
+with open(join(dirname(realpath(__file__)), 'wiring_files', 'nidq.wiring.json'), 'r') as openfile:
     nidq_sync_dictionary = json.load(openfile)
-with open(join(dirname(realpath(__file__)),
+with open(join(dirname(realpath(__file__)), 'wiring_files',
                f'{nidq_sync_dictionary["SYSTEM"]}.wiring.json'), 'r') as openfile:
     probe_sync_dictionary = json.load(openfile)
 
@@ -35,8 +35,9 @@ with open(join(dirname(realpath(__file__)),
 id_str = '_' + settings_dict['IDENTIFIER']
     
 # Load in spike sorting parameters
-if isfile(join(dirname(realpath(__file__)), f'{settings_dict["SPIKE_SORTER"]}_params.json')):
-    with open(join(dirname(realpath(__file__)),
+if isfile(join(dirname(realpath(__file__)), 'spiksorter_param_files',
+               f'{settings_dict["SPIKE_SORTER"]}_params.json')):
+    with open(join(dirname(realpath(__file__)), 'spiksorter_param_files',
                    f'{settings_dict["SPIKE_SORTER"]}_params.json'), 'r') as openfile:
         sorter_params = json.load(openfile)
 else:
