@@ -49,7 +49,7 @@ if settings_dict['RUN_BOMBCELL']:
     eng = matlab.engine.start_matlab()
     eng.addpath(r"{}".format(os.path.dirname(os.path.realpath(__file__))), nargout=0)
     eng.addpath(eng.genpath(settings_dict['BOMBCELL_PATH']))
-    eng.addpath(settings_dict['MATLAB_NPY_PATH'])
+    eng.addpath(eng.genpath(settings_dict['MATLAB_NPY_PATH']))
 
 # Search for spikesort_me.flag
 print('Looking for spikesort_me.flag..')
