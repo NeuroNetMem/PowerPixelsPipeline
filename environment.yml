@@ -1,4 +1,4 @@
-name: pixelzord
+name: powerpixels
 channels:
   - conda-forge
   - defaults
