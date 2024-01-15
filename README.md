@@ -1,6 +1,6 @@
-# Pixelzord Pipeline for pre/post-processing and spike sorting of Neuropixel recordings
+# Power Pixels pipeline for pre/post-processing and spike sorting of Neuropixel recordings
 
-The Pixelzord pipeline combines the best parts of several pipelines (and even MATLAB) into one Python-based pipeline. It supports Neuropixel 1.0 probes (2.0 support coming soon) recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. OpenEphys GUI support can be implemented if there is interest. 
+The Power Pixels pipeline combines the best parts of several pipelines (and even MATLAB) into one Python-based pipeline. It supports Neuropixel 1.0 probes (2.0 support coming soon) recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. OpenEphys GUI support can be implemented if there is interest. 
 
 This pipeline is nothing new! It's all about combining existing modules and pipelines into one, which is especially useful for people who are just starting out doing Neuropixel recordings and maybe have heard of all these tools but need some help getting them all integrated. Pixelzord relies on these amazing open-source projects:
 - SpikeInterface (https://spikeinterface.readthedocs.io)
@@ -24,13 +24,13 @@ The pipeline goes through the following steps:
 
 ## Installation
 
-It is recommended to install Pixelzord in an Anaconda or Miniforge environment.
+It is recommended to install Power Pixels in an Anaconda or Miniforge environment.
 1. Install Anaconda (https://www.anaconda.com/) or Miniforge (https://github.com/conda-forge/miniforge) - Miniforge is the recommended option
 2. Open the Anaconda or Miniforge prompt
 3. Install git by typing ```conda install git``` or ```mamba install git``` depending on whether you use Anaconda or Miniforge, respectively
-4. Navigate to the location on your computer you want the repository to be and clone the repository by typing ```git clone https://github.com/NeuroNetMem/PixelzordPipeline```
+4. Navigate to the location on your computer you want the repository to be and clone the repository by typing ```git clone https://github.com/NeuroNetMem/PowerPixelsPipeline```
 5. Create the environment from the provided YML file by typing ```conda env create -f environment.yml``` or ```mamba env create -f environment.yml```
-6. You can now activate the environment by typing ```conda activate pixelzord```
+6. You can now activate the environment by typing ```conda activate powerpixels```
 
 ### Docker
 SpikeInterface uses Docker to launch spike sorters in a docker container, this is great because it means that you don't need to tinker with grapic card drivers or have MATLAB installed. Instructions to set up Docker on Windows:
