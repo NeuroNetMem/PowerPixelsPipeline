@@ -49,7 +49,7 @@ For manual curation of the spike sorting output you need to install Phy, follow 
 
 After installing all the necessary components you can set up your pipeline for use.
 1. Open your Anaconda or Miniforge prompt.
-2. Activate your environment by typing ```conda activate pixelzord```
+2. Activate your environment by typing ```conda activate powerpixels```
 3. Navigate to the cloned repository
 4. Generate setting JSON files ```python generate_json_files.py```
 5. Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py)
