@@ -17,7 +17,7 @@
     "nfilt_factor": 4,
     "NT": null,
     "AUCsplit": 0.9,
-    "do_correction": true,
+    "do_correction": false,
     "wave_length": 61,
     "keep_good_only": false,
     "skip_kilosort_preprocessing": false,

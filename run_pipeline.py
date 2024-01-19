@@ -122,18 +122,26 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
                                     
             # Pre-process 
-            rec = spre.highpass_filter(rec)
-            rec = spre.phase_shift(rec)
-            bad_channel_ids, all_channels = spre.detect_bad_channels(rec)
-            rec = spre.interpolate_bad_channels(rec, bad_channel_ids)
-            rec = spre.highpass_spatial_filter(rec)
+            print('Applying high-pass filter.. ', end='')
+            rec_filtered = spre.highpass_filter(rec)
+            print('Done\nCorrecting for phase shift.. ', end='')
+            rec_shifted = spre.phase_shift(rec_filtered)
+            print('Done\nDetecting and interpolating over bad channels.. ', end='')
+            bad_channel_ids, all_channels = spre.detect_bad_channels(rec_shifted)
+            rec_interpolated = spre.interpolate_bad_channels(rec_shifted, bad_channel_ids)
+            print('Done\nDestriping.. ', end='')
+            rec_destriped = spre.highpass_spatial_filter(rec_interpolated)
+            print('Done\nPerforming motion correction.. ', end='')
+            rec_corrected = spre.correct_motion(rec_destriped, preset='nonrigid_accurate',
+                                                n_jobs=-1, progress_bar=True)
+            print('Done')
                             
             # Run spike sorting
             try:
                 print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
                 sort = run_sorter(
                     settings_dict['SPIKE_SORTER'],
-                    rec,
+                    rec_corrected,
                     output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
                     verbose=True,
                     docker_image=True,

@@ -15,7 +15,7 @@
     "nPCs": 3,
     "ntbuff": 64,
     "nfilt_factor": 4,
-    "do_correction": true,
+    "do_correction": false,
     "NT": null,
     "AUCsplit": 0.8,
     "wave_length": 61,
