@@ -74,6 +74,9 @@ The pipeline is in principle agnostic to how your data is organized at a high le
 ```
 To facilitate the process you can run the helper function `python PowerPixelsPipeline\prepare_sessions.py` which creates the folders and flags for you (optional).
 
+## Data output format
+The data that comes out of the Power Pixels pipeline is in [ALF filenaming convention](https://int-brain-lab.github.io/ONE/alf_intro.html). A helper function is included to load in your neural data `load_neural_data` in `powerpixel_utils.py`.
+
 ## Usage workflow
 
 1. Before starting a recording prepare the folder structure, either manually or by running `python PowerPixelsPipeline\prepare_sessions.py`. 
