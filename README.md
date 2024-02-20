@@ -1,4 +1,4 @@
-# Power Pixels pipeline for pre/post-processing and spike sorting of Neuropixel recordings
+# Power Pixels pipeline for processing of Neuropixel recordings
 
 The Power Pixels pipeline combines the best parts of several pipelines (and even MATLAB) into one Python-based pipeline. It supports Neuropixel 1.0 probes (2.0 support coming soon) recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. OpenEphys GUI support can be implemented if there is interest. 
 
