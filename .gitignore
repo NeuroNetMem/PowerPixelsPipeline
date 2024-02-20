@@ -2,3 +2,5 @@
 wiring_files/
 
 settings.json
+
+__pycache__/

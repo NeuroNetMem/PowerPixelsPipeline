@@ -51,12 +51,12 @@ if settings_dict['RUN_BOMBCELL']:
     eng.addpath(eng.genpath(settings_dict['BOMBCELL_PATH']))
     eng.addpath(eng.genpath(settings_dict['MATLAB_NPY_PATH']))
 
-# Search for spikesort_me.flag
-print('Looking for spikesort_me.flag..')
+# Search for process_me.flag
+print('Looking for process_me.flag..')
 for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
-    if 'spikesort_me.flag' in files:
+    if 'process_me.flag' in files:
         session_path = Path(root)
-        print(f'\nFound spikesort_me.flag in {root}')
+        print(f'\nFound process_me.flag in {root}')
         print(f'Starting pipeline at {datetime.now().strftime("%H:%M")}')
         
         # Restructure file and folders
@@ -184,6 +184,11 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                        Path(join(root, 'raw_ephys_data', this_probe)),
                        alf_path)
             
+            # Move LFP power etc. to the alf folder
+            qc_files = glob(join(root, 'raw_ephys_data', this_probe, '_iblqc_*'))
+            for ii, this_file in enumerate(qc_files):
+                shutil.move(this_file, join(alf_path, split(this_file)[1]))
+            
             # Add bombcell QC to alf folder
             if settings_dict['RUN_BOMBCELL']:
                 shutil.copy(join(sorter_out_path, 'cluster_bc_unitType.tsv'),
@@ -226,5 +231,5 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             
             print(f'Done! At {datetime.now().strftime("%H:%M")}')
         
-        # Delete spikesort_me.flag
-        os.remove(os.path.join(root, 'spikesort_me.flag'))
+        # Delete process_me.flag
+        os.remove(os.path.join(root, 'process_me.flag'))

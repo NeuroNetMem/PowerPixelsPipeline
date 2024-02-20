@@ -39,8 +39,8 @@ while subject_name != 'q':
         print(f'Created session {this_date} for {subject_name}')
         
     # Create flags
-    if not isfile(join(settings_dict['DATA_FOLDER'], subject_name, this_date, 'spikesort_me.flag')):
-        with open(join(settings_dict['DATA_FOLDER'], subject_name, this_date, 'spikesort_me.flag'), 'w') as fp:
+    if not isfile(join(settings_dict['DATA_FOLDER'], subject_name, this_date, 'process_me.flag')):
+        with open(join(settings_dict['DATA_FOLDER'], subject_name, this_date, 'process_me.flag'), 'w') as fp:
             pass
    
     # Get mouse name
