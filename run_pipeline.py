@@ -17,10 +17,13 @@ from ibllib.ephys import ephysqc
 from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSyncRegisterRaw,
                                       EphysPulses)
+from brainbox.metrics.single_units import spike_sorting_metrics
 
 import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
 from spikeinterface.sorters import run_sorter, get_default_sorter_params
+
+from powerpixel_utils import load_neural_data
 
 # Load in setting files
 with open(join(dirname(realpath(__file__)), 'settings.json'), 'r') as openfile:
@@ -158,8 +161,9 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 continue
             
             # Get AP and meta data files
-            ap_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.*bin'))[0]
-            meta_file = glob(join(root, 'raw_ephys_data', this_probe, '*ap.meta'))[0]
+            bin_path = Path(join(root, 'raw_ephys_data', this_probe))
+            ap_file = glob(join(bin_path, '*ap.*bin'))[0]
+            meta_file = glob(join(bin_path, '*ap.meta'))[0]
             
             # Get folder paths
             sorter_out_path = Path(join(probe_path,
@@ -180,12 +184,10 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             # Export spike sorting to alf files
             if not isdir(join(root, this_probe)):
                 os.mkdir(join(root, this_probe))
-            ks2_to_alf(sorter_out_path,
-                       Path(join(root, 'raw_ephys_data', this_probe)),
-                       alf_path)
+            ks2_to_alf(sorter_out_path, bin_path, alf_path)
             
             # Move LFP power etc. to the alf folder
-            qc_files = glob(join(root, 'raw_ephys_data', this_probe, '_iblqc_*'))
+            qc_files = glob(join(bin_path, '_iblqc_*'))
             for ii, this_file in enumerate(qc_files):
                 shutil.move(this_file, join(alf_path, split(this_file)[1]))
             
@@ -193,8 +195,23 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             if settings_dict['RUN_BOMBCELL']:
                 shutil.copy(join(sorter_out_path, 'cluster_bc_unitType.tsv'),
                             join(alf_path, 'cluster_bc_unitType.tsv'))
+                shutil.copy(join(sorter_out_path, 'cluster_frac_RPVs.tsv'),
+                            join(alf_path, 'cluster_frac_RPVs.tsv'))
+                shutil.copy(join(sorter_out_path, 'cluster_SNR.tsv'),
+                            join(alf_path, 'cluster_SNR.tsv'))
                 bc_unittype = pd.read_csv(join(alf_path, 'cluster_bc_unitType.tsv'), sep='\t')
-                np.save(join(alf_path, 'clusters.bcUnitType'), bc_unittype['bc_unitType'])
+                np.save(join(alf_path, 'clusters.bcUnitType.npy'), bc_unittype['bc_unitType'])
+                
+            # Calculate and add IBL quality metrics
+            print('Calculating IBL neuron-level quality metrics..')
+            spikes, clusters, channels = load_neural_data(root, this_probe, histology=False,
+                                                          only_good=False)
+            df_units, rec_qc = spike_sorting_metrics(spikes['times'], spikes['clusters'],
+                                                     spikes['amps'], spikes['depths'],
+                                                     cluster_ids=clusters['cluster_id'])
+            df_units['ibl_label'] = df_units['label']
+            df_units[['cluster_id', 'ibl_label']].to_csv(join(alf_path, 'cluster_IBLLabel.tsv'),
+                                                     sep='\t', index=False)
             
             # Synchronize spike sorting to nidq clock
             sync_spike_sorting(Path(ap_file), alf_path)
