@@ -11,7 +11,7 @@ This pipeline is nothing new! It's all about combining existing modules and pipe
 
 ## Description of the pipeline elements
 
-![image](https://github.com/NeuroNetMem/PowerPixelsPipeline/assets/19360723/70ebe00d-ef57-4550-99d9-5d00a3d818f0)
+![image](https://github.com/NeuroNetMem/PowerPixelsPipeline/assets/19360723/74ef90fa-1309-4aa5-9aaf-e5d8023b9d3f)
 
 The pipeline goes through the following steps:
 - **Phase shift correction**: channels on a Neuropixel probe are not recorded simultaneously, there is a small (30 microsecond) delay between the acquisition of a block of channels. Correcting for this small delay greatly improves artifact removal at the "Destriping" step.
