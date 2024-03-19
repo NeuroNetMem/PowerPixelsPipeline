@@ -19,9 +19,10 @@ from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSy
                                       EphysPulses)
 from brainbox.metrics.single_units import spike_sorting_metrics
 
+import spikeinterface as si
 import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
-from spikeinterface.sorters import run_sorter, get_default_sorter_params
+from spikeinterface.sorters import run_sorter, run_sorter_by_property, get_default_sorter_params
 
 from powerpixel_utils import load_neural_data
 
@@ -35,7 +36,10 @@ with open(join(dirname(realpath(__file__)), 'wiring_files',
     probe_sync_dictionary = json.load(openfile)
 
 # Get run identifier string
-id_str = '_' + settings_dict['IDENTIFIER']
+if len(settings_dict['IDENTIFIER']) > 0:
+    id_str = '_' + settings_dict['IDENTIFIER']
+else:
+    id_str = ''
     
 # Load in spike sorting parameters
 if isfile(join(dirname(realpath(__file__)), 'spiksorter_param_files',
@@ -87,7 +91,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             with open(ap_file.with_suffix('.wiring.json'), 'w') as fp:
                 json.dump(probe_sync_dictionary, fp, indent=1)
         
-        # Create nidq sync file
+        # Create nidq sync file        
         EphysSyncRegisterRaw(session_path=session_path, sync_collection='raw_ephys_data').run()
                 
         # Loop over multiple probes 
@@ -117,13 +121,13 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 task.probe_path = Path(probe_path)
                 task.run()
             
-            # Load in recording         
+            # Load in recording
             if len(glob(join(probe_path, '*.cbin'))) > 0:
                 # Recording is already compressed by a previous run, loading in compressed data
                 rec = se.read_cbin_ibl(probe_path)
             else:
                 rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
-                                    
+            
             # Pre-process 
             print('Applying high-pass filter.. ', end='')
             rec_filtered = spre.highpass_filter(rec)
@@ -132,33 +136,68 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             print('Done\nDetecting and interpolating over bad channels.. ', end='')
             bad_channel_ids, all_channels = spre.detect_bad_channels(rec_shifted)
             rec_interpolated = spre.interpolate_bad_channels(rec_shifted, bad_channel_ids)
+            
+            # If there are multiple shanks, do destriping per shank
             print('Done\nDestriping.. ', end='')
-            rec_destriped = spre.highpass_spatial_filter(rec_interpolated)
-            print('Done\nPerforming motion correction.. ', end='')
-            rec_corrected = spre.correct_motion(rec_destriped, preset='nonrigid_accurate',
-                                                n_jobs=-1, progress_bar=True)
-            print('Done')
-                            
-            # Run spike sorting
-            try:
-                print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
-                sort = run_sorter(
-                    settings_dict['SPIKE_SORTER'],
-                    rec_corrected,
-                    output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
-                    verbose=True,
-                    docker_image=True,
-                    **sorter_params)
-            except Exception as err:
+            if np.unique(rec_interpolated.get_property('group')).shape[0] > 1:
                 
-                # Log error to disk
-                print(err)
-                logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
-                logf.write(str(err))
-                logf.close()
+                # Loop over shanks and do preprocessing per shank
+                rec_split = rec_interpolated.split_by(property='group')
+                rec_destriped = []
+                for sh in range(len(rec_split)):
+                    rec_destriped.append(spre.highpass_spatial_filter(rec_split[sh]))
                 
-                # Continue with next recording
-                continue
+                # Merge back together
+                rec_final = si.aggregate_channels(rec_destriped)
+                print('Done')
+                
+                # Run spike sorting per shank 
+                try:
+                  print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                  sort = run_sorter_by_property(
+                      sorter_name=settings_dict['SPIKE_SORTER'],
+                      recording=rec_final,
+                      grouping_property='group',
+                      working_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
+                      verbose=True,
+                      docker_image=True,
+                      **sorter_params)
+                
+                except Exception as err:
+                    # Log error to disk
+                    print(err)
+                    logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
+                    logf.write(str(err))
+                    logf.close()
+                    
+                    # Continue with next recording
+                    continue
+            else:
+                
+                # Do destriping for the whole probe at once
+                rec_final = spre.highpass_spatial_filter(rec_interpolated)
+                print('Done')
+            
+                # Run spike sorting
+                try:
+                    print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                    sort = run_sorter(
+                        settings_dict['SPIKE_SORTER'],
+                        rec_final,
+                        output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
+                        verbose=True,
+                        docker_image=True,
+                        **sorter_params)
+                except Exception as err:
+                    
+                    # Log error to disk
+                    print(err)
+                    logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
+                    logf.write(str(err))
+                    logf.close()
+                    
+                    # Continue with next recording
+                    continue
             
             # Get AP and meta data files
             bin_path = Path(join(root, 'raw_ephys_data', this_probe))
