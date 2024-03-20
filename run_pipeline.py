@@ -128,17 +128,30 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             else:
                 rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
             
-            # Pre-process 
-            print('Applying high-pass filter.. ', end='')
+            # Apply high-pass filter
+            print('Applying high-pass filter.. ')
             rec_filtered = spre.highpass_filter(rec)
-            print('Done\nCorrecting for phase shift.. ', end='')
+            
+            # Correct for inter-sample phase shift
+            print('Correcting for phase shift.. ')
             rec_shifted = spre.phase_shift(rec_filtered)
-            print('Done\nDetecting and interpolating over bad channels.. ', end='')
+            
+            # Detect and interpolate over bad channels
+            print('Detecting and interpolating over bad channels.. ')
             bad_channel_ids, all_channels = spre.detect_bad_channels(rec_shifted)
-            rec_interpolated = spre.interpolate_bad_channels(rec_shifted, bad_channel_ids)
+            
+            # If there are too many bad channels, skip the interpolation step
+            prec_bad_ch = np.sum(all_channels == 'noise') / all_channels.shape[0]
+            if prec_bad_ch < (1/3):
+                rec_interpolated = spre.interpolate_bad_channels(rec_shifted, bad_channel_ids)
+                print(f'{np.sum(all_channels == "noise")} ({prec_bad_ch*100:.0f}%) bad channels')
+            else:
+                rec_interpolated = rec_shifted
+                print(f'{np.sum(all_channels == "noise")} ({prec_bad_ch*100:.0f}%) bad channels,',
+                      'skipping the interpolation step')
             
             # If there are multiple shanks, do destriping per shank
-            print('Done\nDestriping.. ', end='')
+            print('Destriping.. ')
             if np.unique(rec_interpolated.get_property('group')).shape[0] > 1:
                 
                 # Loop over shanks and do preprocessing per shank
@@ -149,11 +162,10 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 
                 # Merge back together
                 rec_final = si.aggregate_channels(rec_destriped)
-                print('Done')
                 
                 # Run spike sorting per shank 
                 try:
-                  print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                  print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
                   sort = run_sorter_by_property(
                       sorter_name=settings_dict['SPIKE_SORTER'],
                       recording=rec_final,
