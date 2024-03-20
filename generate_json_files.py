@@ -48,6 +48,7 @@ settings_dict = {
     "SPIKE_SORTER": "kilosort2_5",  
     "IDENTIFIER": "",
     "DATA_FOLDER": "C:\\path\\to\\data",
+    "USE_DOCKER": True,
     "RUN_BOMBCELL": False,
     "BOMBCELL_PATH": "C:\\path\\to\\bombcell\\repo",
     "MATLAB_NPY_PATH": "C:\\path\\to\\npy-matlab\\repo"

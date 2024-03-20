@@ -160,7 +160,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                       grouping_property='group',
                       working_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
                       verbose=True,
-                      docker_image=True,
+                      docker_image=settings_dict['USE_DOCKER'],
                       **sorter_params)
                 
                 except Exception as err:
@@ -186,7 +186,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                         rec_final,
                         output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
                         verbose=True,
-                        docker_image=True,
+                        docker_image=settings_dict['USE_DOCKER'],
                         **sorter_params)
                 except Exception as err:
                     
