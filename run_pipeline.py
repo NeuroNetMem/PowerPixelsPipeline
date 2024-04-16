@@ -123,7 +123,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 rec = se.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
             
             # Apply high-pass filter
-            print('Applying high-pass filter.. ')
+            print('\nApplying high-pass filter.. ')
             rec_filtered = spre.highpass_filter(rec)
             
             # Correct for inter-sample phase shift
@@ -168,7 +168,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             
             # Run spike sorting
             try:
-                print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
                 sort = run_sorter(
                     settings_dict['SPIKE_SORTER'],
                     rec_final,
