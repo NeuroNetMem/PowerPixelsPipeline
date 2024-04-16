@@ -42,9 +42,9 @@ else:
     id_str = ''
     
 # Load in spike sorting parameters
-if isfile(join(dirname(realpath(__file__)), 'spiksorter_param_files',
+if isfile(join(dirname(realpath(__file__)), 'spikesorter_param_files',
                f'{settings_dict["SPIKE_SORTER"]}_params.json')):
-    with open(join(dirname(realpath(__file__)), 'spiksorter_param_files',
+    with open(join(dirname(realpath(__file__)), 'spikesorter_param_files',
                    f'{settings_dict["SPIKE_SORTER"]}_params.json'), 'r') as openfile:
         sorter_params = json.load(openfile)
 else:
@@ -114,13 +114,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                sync_collection='raw_ephys_data',
                                device_collection='raw_ephys_data')
             task.run()
-            
-            # Compute raw ephys QC metrics
-            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
-                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
-                task.probe_path = Path(probe_path)
-                task.run()
-            
+           
             # Load in recording
             if len(glob(join(probe_path, '*.cbin'))) > 0:
                 # Recording is already compressed by a previous run, loading in compressed data
@@ -135,6 +129,10 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             # Correct for inter-sample phase shift
             print('Correcting for phase shift.. ')
             rec_shifted = spre.phase_shift(rec_filtered)
+            
+            # Do common average referencing
+            print('Performing common average referencing.. ')
+            rec_shifted = spre.common_reference(rec_filtered)
             
             # Detect and interpolate over bad channels
             print('Detecting and interpolating over bad channels.. ')
@@ -163,58 +161,42 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 # Merge back together
                 rec_final = si.aggregate_channels(rec_destriped)
                 
-                # Run spike sorting per shank 
-                try:
-                  print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
-                  sort = run_sorter_by_property(
-                      sorter_name=settings_dict['SPIKE_SORTER'],
-                      recording=rec_final,
-                      grouping_property='group',
-                      working_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
-                      verbose=True,
-                      docker_image=settings_dict['USE_DOCKER'],
-                      **sorter_params)
-                
-                except Exception as err:
-                    # Log error to disk
-                    print(err)
-                    logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
-                    logf.write(str(err))
-                    logf.close()
-                    
-                    # Continue with next recording
-                    continue
             else:
                 
                 # Do destriping for the whole probe at once
                 rec_final = spre.highpass_spatial_filter(rec_interpolated)
-                print('Done')
             
-                # Run spike sorting
-                try:
-                    print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
-                    sort = run_sorter(
-                        settings_dict['SPIKE_SORTER'],
-                        rec_final,
-                        output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
-                        verbose=True,
-                        docker_image=settings_dict['USE_DOCKER'],
-                        **sorter_params)
-                except Exception as err:
-                    
-                    # Log error to disk
-                    print(err)
-                    logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
-                    logf.write(str(err))
-                    logf.close()
-                    
-                    # Continue with next recording
-                    continue
+            # Run spike sorting
+            try:
+                print(f'Starting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                sort = run_sorter(
+                    settings_dict['SPIKE_SORTER'],
+                    rec_final,
+                    output_folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
+                    verbose=True,
+                    docker_image=settings_dict['USE_DOCKER'],
+                    **sorter_params)
+            except Exception as err:
+                
+                # Log error to disk
+                print(err)
+                logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
+                logf.write(str(err))
+                logf.close()
+                
+                # Continue with next recording
+                continue
             
             # Get AP and meta data files
             bin_path = Path(join(root, 'raw_ephys_data', this_probe))
             ap_file = glob(join(bin_path, '*ap.*bin'))[0]
             meta_file = glob(join(bin_path, '*ap.meta'))[0]
+            
+            # Compute raw ephys QC metrics
+            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
+                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
+                task.probe_path = Path(probe_path)
+                task.run()
             
             # Get folder paths
             sorter_out_path = Path(join(probe_path,
