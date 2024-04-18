@@ -167,9 +167,14 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 rec_final = spre.highpass_spatial_filter(rec_interpolated)
             """
             
-            # Do destriping for the whole probe at once
+            # If there are multiple shanks, skip destriping for now
             print('Destriping.. ')
-            rec_final = spre.highpass_spatial_filter(rec_interpolated)
+            if np.unique(rec_interpolated.get_property('group')).shape[0] > 1:
+                rec_final = rec_interpolated
+            else:
+                # Do destriping for the whole probe at once
+                print('Destriping.. ')
+                rec_final = spre.highpass_spatial_filter(rec_interpolated)
                         
             # Run spike sorting
             try:
