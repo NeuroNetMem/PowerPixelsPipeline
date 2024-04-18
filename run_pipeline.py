@@ -19,10 +19,9 @@ from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSy
                                       EphysPulses)
 from brainbox.metrics.single_units import spike_sorting_metrics
 
-import spikeinterface as si
 import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
-from spikeinterface.sorters import run_sorter, run_sorter_by_property, get_default_sorter_params
+from spikeinterface.sorters import run_sorter, get_default_sorter_params
 
 from powerpixel_utils import load_neural_data
 
@@ -132,11 +131,11 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             
             # Do common average referencing
             print('Performing common average referencing.. ')
-            rec_shifted = spre.common_reference(rec_filtered)
+            rec_comref = spre.common_reference(rec_filtered)
             
             # Detect and interpolate over bad channels
             print('Detecting and interpolating over bad channels.. ')
-            bad_channel_ids, all_channels = spre.detect_bad_channels(rec_shifted)
+            bad_channel_ids, all_channels = spre.detect_bad_channels(rec_comref)
             
             # If there are too many bad channels, skip the interpolation step
             prec_bad_ch = np.sum(all_channels == 'noise') / all_channels.shape[0]
@@ -144,10 +143,11 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 rec_interpolated = spre.interpolate_bad_channels(rec_shifted, bad_channel_ids)
                 print(f'{np.sum(all_channels == "noise")} ({prec_bad_ch*100:.0f}%) bad channels')
             else:
-                rec_interpolated = rec_shifted
+                rec_interpolated = rec_comref
                 print(f'{np.sum(all_channels == "noise")} ({prec_bad_ch*100:.0f}%) bad channels,',
                       'skipping the interpolation step')
             
+            """
             # If there are multiple shanks, do destriping per shank
             print('Destriping.. ')
             if np.unique(rec_interpolated.get_property('group')).shape[0] > 1:
@@ -165,7 +165,12 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 
                 # Do destriping for the whole probe at once
                 rec_final = spre.highpass_spatial_filter(rec_interpolated)
+            """
             
+            # Do destriping for the whole probe at once
+            print('Destriping.. ')
+            rec_final = spre.highpass_spatial_filter(rec_interpolated)
+                        
             # Run spike sorting
             try:
                 print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
@@ -217,7 +222,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             # Export spike sorting to alf files
             if not isdir(join(root, this_probe)):
                 os.mkdir(join(root, this_probe))
-            ks2_to_alf(str(sorter_out_path), bin_path, alf_path)
+            ks2_to_alf(sorter_out_path, bin_path, alf_path)
             
             # Move LFP power etc. to the alf folder
             qc_files = glob(join(bin_path, '_iblqc_*'))
