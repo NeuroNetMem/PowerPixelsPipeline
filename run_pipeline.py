@@ -63,8 +63,7 @@ print('Looking for process_me.flag..')
 for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
     if 'process_me.flag' in files:
         session_path = Path(root)
-        print(f'\nFound process_me.flag in {root}')
-        print(f'Starting pipeline at {datetime.now().strftime("%H:%M")}')
+        print(f'\nStarting pipeline in {root} at {datetime.now().strftime("%H:%M")}\n')
         
         # Restructure file and folders
         if 'probe00' not in os.listdir(join(root, 'raw_ephys_data')):
@@ -97,6 +96,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
         # Loop over multiple probes 
         probes = glob(join(root, 'raw_ephys_data', 'probe*'))
         for i, probe_path in enumerate(probes):
+            print(f'\nStarting preprocessing of {split(probe_path)[-1]}')
             
             # Check if probe is already processed
             this_probe = split(probe_path)[1]
@@ -217,7 +217,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             # Export spike sorting to alf files
             if not isdir(join(root, this_probe)):
                 os.mkdir(join(root, this_probe))
-            ks2_to_alf(sorter_out_path, bin_path, alf_path)
+            ks2_to_alf(str(sorter_out_path), bin_path, alf_path)
             
             # Move LFP power etc. to the alf folder
             qc_files = glob(join(bin_path, '_iblqc_*'))

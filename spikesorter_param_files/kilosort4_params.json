@@ -12,7 +12,7 @@
     "sig_interp": 20,
     "nt0min": null,
     "dmin": null,
-    "dminx": null,
+    "dminx": 32,
     "min_template_size": 10,
     "template_sizes": 5,
     "nearest_chans": 10,
