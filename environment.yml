@@ -10,3 +10,5 @@ dependencies:
     - "spikeinterface[full]"
     - "docker"
     - "ibllib"
+    - "ipympl"
+    - "jupyter"

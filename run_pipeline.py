@@ -6,24 +6,18 @@ Created on Wed Apr  5 14:02:41 2023 by Guido Meijer
 import os
 from os.path import join, split, isfile, isdir, dirname, realpath
 import numpy as np
-import pandas as pd
 from datetime import datetime
 import shutil
 from glob import glob
 from pathlib import Path
 import json
 import matplotlib.pyplot as plt
-
 from ibllib.ephys import ephysqc
 from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSyncRegisterRaw,
                                       EphysPulses)
 from brainbox.metrics.single_units import spike_sorting_metrics
-from phylib.io.model import get_template_params
-from phylib.utils._misc import write_python
-
 import spikeinterface.full as si
-
 from powerpixel_utils import load_neural_data
 
 # Load in setting files
@@ -173,7 +167,6 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                     rec_destriped, renamed_channel_ids=rec_interpolated.get_channel_ids())
                 
             else:
-                
                 # Do destriping for the whole probe at once
                 rec_destriped = si.highpass_spatial_filter(rec_interpolated)
             
@@ -209,7 +202,6 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 plt.savefig(join(probe_path, 'power spectral density after notch filter.jpg'), dpi=600)
                 
                 rec_final = rec_notch
-                
             else:
                 rec_final = rec_destriped
                 
@@ -236,23 +228,29 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 
                 # Continue with next recording
                 continue
+
+            # Remove duplicated spikes and units
+            sort = si.remove_duplicated_spikes(sort,
+                                               censored_period_ms=0.3,
+                                               method='keep_first_iterative')
+            sort = si.remove_excess_spikes(sort, rec_final)
+            sort = si.remove_redundant_units(sort, align=False,
+                                             remove_strategy='max_spikes')
             
-            # Get AP and meta data files
-            bin_path = Path(join(root, 'raw_ephys_data', this_probe))
-            ap_file = glob(join(bin_path, '*ap.*bin'))[0]
-            meta_file = glob(join(bin_path, '*ap.meta'))[0]
-            
-            # Compute raw ephys QC metrics
-            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
-                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
-                task.probe_path = Path(probe_path)
-                task.run()
-            
+            # Create an analyzer 
+            analyzer = si.create_sorting_analyzer(sort, rec_final,
+                                                  format='memory',
+                                                  sparse=True)
             # Get folder paths
             sorter_out_path = Path(join(probe_path,
                                         settings_dict['SPIKE_SORTER'] + id_str,
                                         'sorter_output'))
             alf_path = Path(join(root, this_probe + id_str))
+            
+            # Get AP and meta data files
+            bin_path = Path(join(root, 'raw_ephys_data', this_probe))
+            ap_file = glob(join(bin_path, '*ap.*bin'))[0]
+            meta_file = glob(join(bin_path, '*ap.meta'))[0]
             
             # Run Bombcell
             if settings_dict['RUN_BOMBCELL']:
@@ -264,13 +262,11 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                  probe_path,
                                  nargout=0)
             
-            # Change the pointer in phy to the raw data from the temporary recording.dat
-            # to the original bin file
-            phy_params = get_template_params(sorter_out_path / 'params.py')
-            phy_params['dat_path'] = str(bin_path / ap_file)
-            phy_params['dir_path'] = str(phy_params['dir_path'])
-            phy_params['dtype'] = str(phy_params['dtype'])
-            write_python(sorter_out_path / 'params.py', phy_params)
+            # Compute raw ephys QC metrics
+            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
+                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
+                task.probe_path = Path(probe_path)
+                task.run()
             
             # Export as alf
             if not isdir(alf_path):
@@ -282,17 +278,6 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             for ii, this_file in enumerate(qc_files):
                 shutil.move(this_file, join(alf_path, split(this_file)[1]))
             
-            # Add bombcell QC to alf folder
-            if settings_dict['RUN_BOMBCELL']:
-                shutil.copy(join(sorter_out_path, 'cluster_bc_unitType.tsv'),
-                            join(alf_path, 'cluster_bc_unitType.tsv'))
-                shutil.copy(join(sorter_out_path, 'cluster_frac_RPVs.tsv'),
-                            join(alf_path, 'cluster_frac_RPVs.tsv'))
-                shutil.copy(join(sorter_out_path, 'cluster_SNR.tsv'),
-                            join(alf_path, 'cluster_SNR.tsv'))
-                bc_unittype = pd.read_csv(join(alf_path, 'cluster_bc_unitType.tsv'), sep='\t')
-                np.save(join(alf_path, 'clusters.bcUnitType.npy'), bc_unittype['bc_unitType'])
-                
             # Calculate and add IBL quality metrics
             print('Calculating IBL neuron-level quality metrics..')
             spikes, clusters, channels = load_neural_data(root, this_probe, histology=False,
@@ -321,24 +306,23 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             # Delete copied recording.dat file
             if isfile(join(sorter_out_path, 'recording.dat')):
                 os.remove(join(sorter_out_path, 'recording.dat'))
-                
-            """
-            # Compress raw data
-            if len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0:
-                print('Compressing raw binary file')
-                task = EphysCompressNP1(session_path=Path(root), pname=this_probe)
-                task.run()
-                
-            # Delete original raw data
-            if ((len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0)
-                and (len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))) == 1)):
-                try:
-                    os.remove(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))[0])
-                except:
-                    print('Could not remove uncompressed ap bin file, delete manually')
-                    continue
-            """
             
+            # Compress raw data
+            if settings_dict['COMPRESS_RAW_DATA']:
+                if len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0:
+                    print('Compressing raw binary file')
+                    task = EphysCompressNP1(session_path=Path(root), pname=this_probe)
+                    task.run()
+                    
+                # Delete original raw data
+                if ((len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0)
+                    and (len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))) == 1)):
+                    try:
+                        os.remove(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))[0])
+                    except:
+                        print('Could not remove uncompressed ap bin file, delete manually')
+                        continue
+                        
             probe_done[i] = True
             print(f'Done! At {datetime.now().strftime("%H:%M")}')
         
