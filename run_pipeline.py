@@ -12,6 +12,8 @@ from glob import glob
 from pathlib import Path
 import json
 import matplotlib.pyplot as plt
+from neuropixel import NP2Converter
+from atlaselectrophysiology.extract_files import extract_rmsmap
 from ibllib.ephys import ephysqc
 from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSyncRegisterRaw,
@@ -251,6 +253,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             bin_path = Path(join(root, 'raw_ephys_data', this_probe))
             ap_file = glob(join(bin_path, '*ap.*bin'))[0]
             meta_file = glob(join(bin_path, '*ap.meta'))[0]
+            lf_file = glob(join(bin_path, '*lf.*bin'))[0]
             
             # Run Bombcell
             if settings_dict['RUN_BOMBCELL']:
@@ -261,12 +264,19 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                  join(split(sorter_out_path)[0], 'bombcell_qc'),
                                  probe_path,
                                  nargout=0)
-            
+                
+            # If there is no LF file (NP2 probes), generate it
+            if len(glob(join(bin_path, '*lf.*bin'))) == 0:
+                print('Generating LFP bin file')
+                conv = NP2Converter(ap_file, compress=False)
+                conv._process_NP21(assert_shanks=False)
+                
             # Compute raw ephys QC metrics
             if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
                 task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
                 task.probe_path = Path(probe_path)
-                task.run()
+                task.run()                
+                extract_rmsmap(ap_file, out_folder=probe_path, spectra=False)
             
             # Export as alf
             if not isdir(alf_path):
