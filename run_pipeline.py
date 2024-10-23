@@ -18,6 +18,8 @@ from ibllib.ephys import ephysqc
 from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysSyncPulses, EphysSyncRegisterRaw,
                                       EphysPulses)
+from neuropixel import NP2Converter
+from atlaselectrophysiology.extract_files import extract_rmsmap
 from brainbox.metrics.single_units import spike_sorting_metrics
 import spikeinterface.full as si
 from powerpixel_utils import load_neural_data
@@ -30,6 +32,9 @@ with open(join(dirname(realpath(__file__)), 'wiring_files', 'nidq.wiring.json'),
 with open(join(dirname(realpath(__file__)), 'wiring_files',
                f'{nidq_sync_dictionary["SYSTEM"]}.wiring.json'), 'r') as openfile:
     probe_sync_dictionary = json.load(openfile)
+
+# Initialize spikeinterface parallel processing
+si.set_global_job_kwargs(n_jobs=settings_dict['N_CORES'], progress_bar=True)
 
 # Get run identifier string
 if len(settings_dict['IDENTIFIER']) > 0:
@@ -62,7 +67,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
         print(f'\nStarting pipeline in {root} at {datetime.now().strftime("%H:%M")}\n')
         
         # Restructure file and folders
-        if 'probe00' not in os.listdir(join(root, 'raw_ephys_data')):
+        if len([i for i in os.listdir(join(root, 'raw_ephys_data')) if i[:5] == 'probe']) == 0:
             if len(os.listdir(join(root, 'raw_ephys_data'))) == 0:
                 print('No ephys data found')
                 continue
@@ -128,7 +133,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             print('Correcting for phase shift.. ')
             rec_shifted = si.phase_shift(rec_filtered)
             
-            # Do common average referencing
+            # Do common average referencing before detecting bad channels
             print('Performing common average referencing.. ')
             rec_comref = si.common_reference(rec_filtered)
             
@@ -153,32 +158,22 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             # Interpolate over bad channels          
             rec_interpolated = si.interpolate_bad_channels(rec_shifted, np.concatenate((
                 dead_channel_ids, noisy_channel_ids, out_channel_ids)))
-                        
-            # If there are multiple shanks, do destriping per shank
-            print('Destriping.. ')
-            if np.unique(rec_interpolated.get_property('group')).shape[0] > 1:
-                
-                # Loop over shanks and do preprocessing per shank
-                rec_split = rec_interpolated.split_by(property='group')
-                rec_destriped = []
-                for sh in range(len(rec_split)):
-                    rec_destriped.append(si.highpass_spatial_filter(rec_split[sh]))
-                
-                # Merge back together
-                rec_destriped = si.aggregate_channels(
-                    rec_destriped, renamed_channel_ids=rec_interpolated.get_channel_ids())
-                
-            else:
-                # Do destriping for the whole probe at once
-                rec_destriped = si.highpass_spatial_filter(rec_interpolated)
             
+            # Destripe when there is one shank, CAR when there are four shanks
+            if np.unique(rec_interpolated.get_property('group')).shape[0] == 1:
+                print('Single shank recording; destriping')
+                rec_processed = si.highpass_spatial_filter(rec_interpolated)
+            else:
+                print('Multi shank recording; common average reference')
+                rec_processed = si.common_reference(rec_interpolated)
+           
             # Plot spectral density
             print('Calculating power spectral density')
-            data_chunk = si.get_random_data_chunks(rec_destriped, num_chunks_per_segment=1,
+            data_chunk = si.get_random_data_chunks(rec_processed, num_chunks_per_segment=1,
                                                    chunk_size=30000, seed=42)
             fig, ax = plt.subplots(figsize=(10, 7))
             for tr in data_chunk.T:
-                p, f = ax.psd(tr, Fs=rec_destriped.sampling_frequency, color="b")
+                p, f = ax.psd(tr, Fs=rec_processed.sampling_frequency, color="b")
             plt.savefig(join(probe_path, 'power spectral density.jpg'), dpi=600)
             
             # Apply notch filter 
@@ -189,7 +184,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                     notch_filter = json.load(openfile)
                     
                 # Apply filters
-                rec_notch = rec_destriped
+                rec_notch = rec_processed
                 for freq, q in zip(notch_filter['FREQ'], notch_filter['Q']):
                     print(f'Applying notch filter at {freq} Hz..')
                     rec_notch = si.notch_filter(rec_notch, freq=freq, q=q)
@@ -200,12 +195,12 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                                        chunk_size=30000, seed=42)
                 fig, ax = plt.subplots(figsize=(10, 7))
                 for tr in data_chunk.T:
-                    p, f = ax.psd(tr, Fs=rec_destriped.sampling_frequency, color="b")
+                    p, f = ax.psd(tr, Fs=rec_processed.sampling_frequency, color="b")
                 plt.savefig(join(probe_path, 'power spectral density after notch filter.jpg'), dpi=600)
                 
                 rec_final = rec_notch
             else:
-                rec_final = rec_destriped
+                rec_final = rec_processed
                 
             # Run spike sorting
             try:
@@ -230,24 +225,13 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 
                 # Continue with next recording
                 continue
-
-            # Remove duplicated spikes and units
-            sort = si.remove_duplicated_spikes(sort,
-                                               censored_period_ms=0.3,
-                                               method='keep_first_iterative')
-            sort = si.remove_excess_spikes(sort, rec_final)
-            sort = si.remove_redundant_units(sort, align=False,
-                                             remove_strategy='max_spikes')
+            print(f'Detected {sort.get_num_units()} units\n')            
             
-            # Create an analyzer 
-            analyzer = si.create_sorting_analyzer(sort, rec_final,
-                                                  format='memory',
-                                                  sparse=True)
             # Get folder paths
             sorter_out_path = Path(join(probe_path,
                                         settings_dict['SPIKE_SORTER'] + id_str,
                                         'sorter_output'))
-            alf_path = Path(join(root, this_probe + id_str))
+            results_path = Path(join(root, this_probe + id_str))
             
             # Get AP and meta data files
             bin_path = Path(join(root, 'raw_ephys_data', this_probe))
@@ -264,7 +248,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                  join(split(sorter_out_path)[0], 'bombcell_qc'),
                                  probe_path,
                                  nargout=0)
-                
+      
             # If there is no LF file (NP2 probes), generate it
             if len(glob(join(bin_path, '*lf.*bin'))) == 0:
                 print('Generating LFP bin file')
@@ -278,29 +262,35 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 task.run()                
                 extract_rmsmap(ap_file, out_folder=probe_path, spectra=False)
             
+            # Compute raw ephys QC metrics
+            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
+                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
+                task.probe_path = Path(probe_path)
+                task.run()                
+                extract_rmsmap(ap_file, out_folder=probe_path, spectra=False)
+            
             # Export as alf
-            if not isdir(alf_path):
-                os.mkdir(alf_path)
-            ks2_to_alf(sorter_out_path, bin_path, alf_path)
+            if not isdir(results_path):
+                os.mkdir(results_path)
+            ks2_to_alf(sorter_out_path, bin_path, results_path)
             
             # Move LFP power etc. to the alf folder
             qc_files = glob(join(bin_path, '_iblqc_*'))
             for ii, this_file in enumerate(qc_files):
-                shutil.move(this_file, join(alf_path, split(this_file)[1]))
+                shutil.move(this_file, join(results_path, split(this_file)[1]))
             
             # Calculate and add IBL quality metrics
             print('Calculating IBL neuron-level quality metrics..')
             spikes, clusters, channels = load_neural_data(root, this_probe, histology=False,
                                                           only_good=False)
             df_units, rec_qc = spike_sorting_metrics(spikes['times'], spikes['clusters'],
-                                                     spikes['amps'], spikes['depths'],
-                                                     cluster_ids=clusters['cluster_id'])
+                                                     spikes['amps'], spikes['depths'])
             df_units['ibl_label'] = df_units['label']
-            df_units[['cluster_id', 'ibl_label']].to_csv(join(alf_path, 'cluster_IBLLabel.tsv'),
+            df_units[['cluster_id', 'ibl_label']].to_csv(join(results_path, 'cluster_IBLLabel.tsv'),
                                                      sep='\t', index=False)
             
             # Synchronize spike sorting to nidq clock
-            sync_spike_sorting(Path(ap_file), alf_path)
+            sync_spike_sorting(Path(ap_file), results_path)
             
             # Extract digital sync timestamps
             sync_times = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
