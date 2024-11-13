@@ -90,7 +90,7 @@ The data that comes out of the Power Pixels pipeline is in [ALF filenaming conve
 9. You can do manual curation of the spike sorting output using [Phy](https://github.com/cortex-lab/phy) and launching it in the probe folder. If you've run BombCell the quality metrics should appear in Phy automatically.
 10. That's it, enjoy your beautiful data!
 
-*If you like this pipeline, you can star this repository and/or give me a shoutout on Twitter ([@guido_meijer](https://twitter.com/guido_meijer)).*
+*If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
 
 
 
