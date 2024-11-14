@@ -15,8 +15,8 @@ This pipeline is nothing new! It's all about combining existing modules and pipe
 
 The pipeline goes through the following steps:
 - **Phase shift correction**: channels on a Neuropixel probe are not recorded simultaneously, there is a small (30 microsecond) delay between the acquisition of a block of channels. Correcting for this small delay greatly improves artifact removal at the "Destriping" step.
-- **Remove bad channels**: bad channels are detected by looking at both coherence with other channels and PSD power in the high-frequency range, then they are interpolated using neighboring channels.
-- **Destriping**: removes electrical artifacts by applying a high pass spatial filter over the depth of the probe.
+- **Remove bad channels**: bad channels are detected by looking at both coherence with other channels and PSD power in the high-frequency range, then they are interpolated using neighboring channels. Channels outside of the brain are removed.
+- **Destriping or CAR**: For single shank 1.0 probes: removes electrical artifacts by applying a high pass spatial filter over the depth of the probe. For 4-shank 2.0 probes: apply a common average reference.
 - **Spike sorting**: a spike sorting algorithm is used to detect spikes and sort them into units. SpikeInterface supports many [spike sorters](https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters) out of the box 
 - **Bombcell**: a MATLAB package that calculates neuron-level QC metrics (optional).
 - **Synchronization**: each Neuropixel probe and the BNC breakout box has their own clock. This means one has to synchronize the spike times between the probes (if you use more than one) and the synchronization channels which carry timestamps of events (for example: behavioral events or pulses from a camera).

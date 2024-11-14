@@ -133,11 +133,11 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             print('Correcting for phase shift.. ')
             rec_shifted = si.phase_shift(rec_filtered)
             
-            # Do common average referencing before detecting bad channels
-            print('Performing common average referencing.. ')
-            rec_comref = si.common_reference(rec_filtered)
-            
+            # Detect and interpolate over bad channels
             print('Detecting and interpolating over bad channels.. ')
+            
+            # Do common average referencing before detecting bad channels
+            rec_comref = si.common_reference(rec_filtered)
             
             # Detect dead channels
             bad_channel_ids, all_channels = si.detect_bad_channels(rec_filtered, seed=42)
@@ -155,9 +155,12 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             print(f'{np.sum(all_channels == "noise")} ({prec_noise_ch*100:.0f}%) noise channels')
             noisy_channel_ids = rec_comref.get_channel_ids()[all_channels == 'noise']
             
+            # Remove channels that are outside of the brain
+            rec_no_out = si.remove_bad_channels(rec_shifted, out_channel_ids)
+            
             # Interpolate over bad channels          
-            rec_interpolated = si.interpolate_bad_channels(rec_shifted, np.concatenate((
-                dead_channel_ids, noisy_channel_ids, out_channel_ids)))
+            rec_interpolated = si.interpolate_bad_channels(rec_no_out, np.concatenate((
+                dead_channel_ids, noisy_channel_ids)))
             
             # Destripe when there is one shank, CAR when there are four shanks
             if np.unique(rec_interpolated.get_property('group')).shape[0] == 1:
