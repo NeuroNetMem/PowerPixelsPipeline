@@ -156,7 +156,7 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             noisy_channel_ids = rec_comref.get_channel_ids()[all_channels == 'noise']
             
             # Remove channels that are outside of the brain
-            rec_no_out = si.remove_bad_channels(rec_shifted, out_channel_ids)
+            rec_no_out = rec_shifted.remove_channels(remove_channel_ids=out_channel_ids)
             
             # Interpolate over bad channels          
             rec_interpolated = si.interpolate_bad_channels(rec_no_out, np.concatenate((
