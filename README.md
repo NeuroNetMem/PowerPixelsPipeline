@@ -81,14 +81,16 @@ The data that comes out of the Power Pixels pipeline is in [ALF filenaming conve
 
 1. Before starting a recording prepare the folder structure, either manually or by running `python PowerPixelsPipeline\prepare_sessions.py`. 
 2. Perform your Neuropixel recording and make sure the output folder of SpikeGLX is one of the probe folders in raw_ephys_data.
-3. Start the pipeline by running the command `python PowerPixelsPipeline\run_pipeline.py`, this will search your top-level data folder for any sessions that have the process_me.flag. The pipeline will take a long time to run so best to do it overnight. After the pipeline has run there will be new probe folders for each of the probes in the top-level of the session folder which contain the spike sorted data and other quality metrics.
-4. After you've done your histology, launch Universal Probe Finder in MATLAB and do the Slice Prepper and Slice Finder steps to trace your probe insertions (you can skip Probe Finder).
-5. To transform the tracks to something the alignment GUI can read run the `convert_histology_to_alignment_GUI.m` script in MATLAB. This will save .json files for all the tracks you traced in Universal Probe Finder.
-6. Match these tracks to the recorded probes and move the .json files to the corresponsing probe folders that were created by the pipeline. Once it's in the correct probe folder, rename the .json file to `xyz_picks.json`.
-7. Launch the alignment gui by typing `python iblapps\atlaselectrophysiology\ephys_atlas_gui.py -o True`, see instructions on how to use the GUI [here](https://github.com/int-brain-lab/iblapps/wiki/2.-Usage-instructions).
-8. After the alignment is done click Upload and the final channel locations and brain regions will be saved in the `channel_locations.json` file.
-9. You can do manual curation of the spike sorting output using [Phy](https://github.com/cortex-lab/phy) and launching it in the probe folder. If you've run BombCell the quality metrics should appear in Phy automatically.
-10. That's it, enjoy your beautiful data!
+3. Have a look at the raw data of your recording with the `visualize_preprocessing.ipynb` notebook.
+4. If there are peaks in the power spectrum of your recording that you want to filter out during the preprocessing, copy the `notch_filter.json` file to the probe folder and adjust the parameters so that you filter out the frequencies you want.
+5. Start the pipeline by running the command `python PowerPixelsPipeline\run_pipeline.py`, this will search your top-level data folder for any sessions that have the process_me.flag. The pipeline will take a long time to run so best to do it overnight. After the pipeline has run there will be new probe folders for each of the probes in the top-level of the session folder which contain the spike sorted data and other quality metrics.
+6. After you've done your histology, launch Universal Probe Finder in MATLAB and do the Slice Prepper and Slice Finder steps to trace your probe insertions (you can skip Probe Finder).
+7. To transform the tracks to something the alignment GUI can read run the `convert_histology_to_alignment_GUI.m` script in MATLAB. This will save .json files for all the tracks you traced in Universal Probe Finder.
+8. Match these tracks to the recorded probes and move the .json files to the corresponsing probe folders that were created by the pipeline. Once it's in the correct probe folder, rename the .json file to `xyz_picks.json`.
+9. Launch the alignment gui by typing `python iblapps\atlaselectrophysiology\ephys_atlas_gui.py -o True`, see instructions on how to use the GUI [here](https://github.com/int-brain-lab/iblapps/wiki/2.-Usage-instructions).
+10. After the alignment is done click Upload and the final channel locations and brain regions will be saved in the `channel_locations.json` file.
+11. You can do manual curation of the spike sorting output using [Phy](https://github.com/cortex-lab/phy) and launching it in the probe folder. If you've run BombCell the quality metrics should appear in Phy automatically.
+12. That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
 
