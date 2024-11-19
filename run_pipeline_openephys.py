@@ -194,8 +194,10 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 logf.close()
                 
                 # Delete empty sorting directory
-                shutil.rmtree(join(session_path, 'raw_ephys_data',
-                                   f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str))
+                if isdir(join(session_path, 'raw_ephys_data',
+                                   f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str)):
+                    shutil.rmtree(join(session_path, 'raw_ephys_data',
+                                       f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str))
                 
                 # Continue with next recording
                 continue
@@ -206,56 +208,11 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                         f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str,
                                         'sorter_output'))
             results_path = Path(join(root, this_probe + id_str))
-                        
-            # Export as alf
-            if not isdir(results_path):
-                os.mkdir(results_path)
-            ks2_to_alf(sorter_out_path, bin_path, results_path)
-            
-            # Calculate and add IBL quality metrics
-            print('Calculating IBL neuron-level quality metrics..')
-            spikes, clusters, channels = load_neural_data(root, this_probe, histology=False,
-                                                          only_good=False)
-            df_units, rec_qc = spike_sorting_metrics(spikes['times'], spikes['clusters'],
-                                                     spikes['amps'], spikes['depths'])
-            df_units['ibl_label'] = df_units['label']
-            df_units[['cluster_id', 'ibl_label']].to_csv(join(results_path, 'cluster_IBLLabel.tsv'),
-                                                     sep='\t', index=False)
-            
-            # Synchronize spike sorting to nidq clock
-            sync_spike_sorting(Path(ap_file), results_path)
-            
-            # Extract digital sync timestamps
-            sync_times = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
-            sync_polarities = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
-            sync_channels = np.load(join(root, 'raw_ephys_data', '_spikeglx_sync.channels.npy'))
-            for ii, ch_name in enumerate(nidq_sync_dictionary['SYNC_WIRING_DIGITAL'].keys()):
-                if ch_name == 'imec_sync':
-                    continue
-                nidq_pulses = sync_times[(sync_channels == int(ch_name[-1])) & (sync_polarities == 1)]
-                np.save(join(root, nidq_sync_dictionary['SYNC_WIRING_DIGITAL'][ch_name] + '.times.npy'),
-                        nidq_pulses)
-            
+                       
             # Delete copied recording.dat file
             if isfile(join(sorter_out_path, 'recording.dat')):
                 os.remove(join(sorter_out_path, 'recording.dat'))
             
-            # Compress raw data
-            if settings_dict['COMPRESS_RAW_DATA']:
-                if len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0:
-                    print('Compressing raw binary file')
-                    task = EphysCompressNP1(session_path=Path(root), pname=this_probe)
-                    task.run()
-                    
-                # Delete original raw data
-                if ((len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.cbin'))) == 0)
-                    and (len(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))) == 1)):
-                    try:
-                        os.remove(glob(join(root, 'raw_ephys_data', this_probe, '*ap.bin'))[0])
-                    except:
-                        print('Could not remove uncompressed ap bin file, delete manually')
-                        continue
-                        
             probe_done[i] = True
             print(f'Done! At {datetime.now().strftime("%H:%M")}')
         
