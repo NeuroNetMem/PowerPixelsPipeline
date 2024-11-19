@@ -235,9 +235,15 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                         settings_dict['SPIKE_SORTER'] + id_str,
                                         'sorter_output'))
             results_path = Path(join(root, this_probe + id_str))
+            bin_path = Path(join(root, 'raw_ephys_data', this_probe))
+            
+            # If there is no LF file (NP2 probes), generate it
+            if len(glob(join(bin_path, '*lf.*bin'))) == 0:
+                print('Generating LFP bin file')
+                conv = NP2Converter(ap_file, compress=False)
+                conv._process_NP21(assert_shanks=False)
             
             # Get AP and meta data files
-            bin_path = Path(join(root, 'raw_ephys_data', this_probe))
             ap_file = glob(join(bin_path, '*ap.*bin'))[0]
             meta_file = glob(join(bin_path, '*ap.meta'))[0]
             lf_file = glob(join(bin_path, '*lf.*bin'))[0]
@@ -251,12 +257,6 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                                  join(split(sorter_out_path)[0], 'bombcell_qc'),
                                  probe_path,
                                  nargout=0)
-      
-            # If there is no LF file (NP2 probes), generate it
-            if len(glob(join(bin_path, '*lf.*bin'))) == 0:
-                print('Generating LFP bin file')
-                conv = NP2Converter(ap_file, compress=False)
-                conv._process_NP21(assert_shanks=False)
                 
             # Compute raw ephys QC metrics
             if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):

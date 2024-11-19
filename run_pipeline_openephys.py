@@ -76,20 +76,20 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             print(f'\nStarting preprocessing of {this_probe}')
             
             # Check if probe is already processed
-            if isdir(join(root, session_path, 'probe0' + i + id_str)):
+            if isdir(join(root, session_path, f'{this_probe}' + id_str)):
                 print('Probe already processed, moving on')
                 probe_done[i] = True
                 continue
             
-            
-           
-           
+            # Get stream name of this recording
+            these_streams = [i for i in stream_names if this_probe in i]
+            if len(these_streams) == 1:  # NP2 recording
+                rec_stream = these_streams[0]
+            elif len(these_streams) == 2:  # NP1 recording
+                rec_stream = [i for i in stream_names if this_probe + '-AP' in i][0]
+                      
             # Load in recording
-            if len(glob(join(probe_path, '*.cbin'))) > 0:
-                # Recording is already compressed by a previous run, loading in compressed data
-                rec = si.read_cbin_ibl(probe_path)
-            else:
-                rec = si.read_spikeglx(probe_path, stream_id=f'imec{split(probe_path)[-1][-1]}.ap')
+            rec = si.read_openephys(session_path, stream_name=rec_stream)
             
             # Apply high-pass filter
             print('\nApplying high-pass filter.. ')
@@ -143,13 +143,14 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
             fig, ax = plt.subplots(figsize=(10, 7))
             for tr in data_chunk.T:
                 p, f = ax.psd(tr, Fs=rec_processed.sampling_frequency, color="b")
-            plt.savefig(join(probe_path, 'power spectral density.jpg'), dpi=600)
+            plt.savefig(join(session_path, 'raw_ephys_data',
+                             f'power spectral density {this_probe}.jpg'), dpi=600)
             
             # Apply notch filter 
-            if isfile(join(probe_path, 'notch_filter.json')):
+            if isfile(join(session_path, f'notch_filter_{this_probe}.json')):
                 
                 # Load in notch filter settings
-                with open(join(probe_path, 'notch_filter.json'), 'r') as openfile:
+                with open(join(session_path, f'notch_filter_{this_probe}.json'), 'r') as openfile:
                     notch_filter = json.load(openfile)
                     
                 # Apply filters
@@ -165,7 +166,9 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 fig, ax = plt.subplots(figsize=(10, 7))
                 for tr in data_chunk.T:
                     p, f = ax.psd(tr, Fs=rec_processed.sampling_frequency, color="b")
-                plt.savefig(join(probe_path, 'power spectral density after notch filter.jpg'), dpi=600)
+                plt.savefig(join(session_path, 'raw_ephys_data',
+                                 f'power spectral density after notch filter {this_probe}.jpg'),
+                            dpi=600)
                 
                 rec_final = rec_notch
             else:
@@ -173,11 +176,12 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 
             # Run spike sorting
             try:
-                print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
+                print(f'\nStarting {this_probe} spike sorting at {datetime.now().strftime("%H:%M")}')
                 sort = si.run_sorter(
                     settings_dict['SPIKE_SORTER'],
                     rec_final,
-                    folder=join(probe_path, settings_dict['SPIKE_SORTER'] + id_str),
+                    folder=join(session_path, 'raw_ephys_data',
+                                f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str),
                     verbose=True,
                     docker_image=settings_dict['USE_DOCKER'],
                     **sorter_params)
@@ -185,68 +189,28 @@ for root, directory, files in os.walk(settings_dict['DATA_FOLDER']):
                 
                 # Log error to disk
                 print(err)
-                logf = open(os.path.join(probe_path, 'error_log.txt'), 'w')
+                logf = open(os.path.join(session_path, 'raw_ephys_data', f'{this_probe}_error_log.txt'), 'w')
                 logf.write(str(err))
                 logf.close()
                 
                 # Delete empty sorting directory
-                shutil.rmtree(join(probe_path, settings_dict['SPIKE_SORTER'] + id_str))
+                shutil.rmtree(join(session_path, 'raw_ephys_data',
+                                   f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str))
                 
                 # Continue with next recording
                 continue
             print(f'Detected {sort.get_num_units()} units\n')            
             
             # Get folder paths
-            sorter_out_path = Path(join(probe_path,
-                                        settings_dict['SPIKE_SORTER'] + id_str,
+            sorter_out_path = Path(join(session_path, 'raw_ephys_data',
+                                        f'{this_probe}' + '_' + settings_dict['SPIKE_SORTER'] + id_str,
                                         'sorter_output'))
             results_path = Path(join(root, this_probe + id_str))
-            
-            # Get AP and meta data files
-            bin_path = Path(join(root, 'raw_ephys_data', this_probe))
-            ap_file = glob(join(bin_path, '*ap.*bin'))[0]
-            meta_file = glob(join(bin_path, '*ap.meta'))[0]
-            lf_file = glob(join(bin_path, '*lf.*bin'))[0]
-            
-            # Run Bombcell
-            if settings_dict['RUN_BOMBCELL']:
-                print('Running Bombcell')
-                eng.run_bombcell(str(sorter_out_path),
-                                 ap_file,
-                                 meta_file,  
-                                 join(split(sorter_out_path)[0], 'bombcell_qc'),
-                                 probe_path,
-                                 nargout=0)
-      
-            # If there is no LF file (NP2 probes), generate it
-            if len(glob(join(bin_path, '*lf.*bin'))) == 0:
-                print('Generating LFP bin file')
-                conv = NP2Converter(ap_file, compress=False)
-                conv._process_NP21(assert_shanks=False)
-                
-            # Compute raw ephys QC metrics
-            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
-                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
-                task.probe_path = Path(probe_path)
-                task.run()                
-                extract_rmsmap(ap_file, out_folder=probe_path, spectra=False)
-            
-            # Compute raw ephys QC metrics
-            if not isfile(join(probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
-                task = ephysqc.EphysQC('', session_path=session_path, use_alyx=False)
-                task.probe_path = Path(probe_path)
-                task.run()                
-                extract_rmsmap(ap_file, out_folder=probe_path, spectra=False)
-            
+                        
             # Export as alf
             if not isdir(results_path):
                 os.mkdir(results_path)
             ks2_to_alf(sorter_out_path, bin_path, results_path)
-            
-            # Move LFP power etc. to the alf folder
-            qc_files = glob(join(bin_path, '_iblqc_*'))
-            for ii, this_file in enumerate(qc_files):
-                shutil.move(this_file, join(results_path, split(this_file)[1]))
             
             # Calculate and add IBL quality metrics
             print('Calculating IBL neuron-level quality metrics..')
