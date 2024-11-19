@@ -1,6 +1,6 @@
 # Power Pixels pipeline for processing of Neuropixel recordings
 
-The Power Pixels pipeline combines the best parts of several pipelines (and even MATLAB) into one Python-based pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. OpenEphys GUI support can be implemented if there is interest. 
+The Power Pixels pipeline combines the best parts of several pipelines (and even MATLAB) into one Python-based pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. There is a very basic version of the pipeline written for OpenEphys users, however, it misses functionality because this pipeline relies heavily on code from the International Brain Laboratory, which is written for SpikeGLX output.
 
 This pipeline is nothing new! It's all about combining existing modules and pipelines into one, which is especially useful for people who are just starting out doing Neuropixel recordings and maybe have heard of all these tools but need some help getting them all integrated. Power Pixels relies on these amazing open-source projects:
 - [SpikeInterface](https://spikeinterface.readthedocs.io)
@@ -64,12 +64,10 @@ After installing all the necessary components you can set up your pipeline for u
 *Recommended parameters for Kilosort 2.5 and 3 are provided in the spikesorter_param_files folder, you can change these if you want but bear in mind that, because they come with the repository, they will be overwritten when you pull any new changes from the repo.*
 
 ## Folder structure
-The pipeline is in principle agnostic to how your data is organized at a high level. The session folder can have any name and can be located anywhere in your top level data directory. However, each session folder does need to abide by some formatting requirements. Inside each session folder there needs to be a raw_ephys_data folder in which there are several folders for the different probes (named probe00, probe01, etc), these folders should be the output folders of SpikeGLX. For the pipeline to find which session folder to process you need to create a process_me.flag file and put it in the session folder.
+The pipeline is in principle agnostic to how your data is organized at a high level. The session folder can have any name and can be located anywhere in your top level data directory. However, each session folder does need to abide by some formatting requirements. Inside each session folder there needs to be a raw_ephys_data folder in which should be the output folder of SpikeGLX or OpenEphys. For the pipeline to find which session folder to process you need to create a process_me.flag file and put it in the session folder.
 ```
 ├── session_folder
 |   ├── raw_ephys_data
-|   |   ├── probe00
-|   |   ├── probe01
 └── process_me.flag
 ```
 To facilitate the process you can run the helper function `python PowerPixelsPipeline\prepare_sessions.py` which creates the folders and flags for you (optional).
@@ -77,13 +75,16 @@ To facilitate the process you can run the helper function `python PowerPixelsPip
 ## Data output format
 The data that comes out of the Power Pixels pipeline is in [ALF filenaming convention](https://int-brain-lab.github.io/ONE/alf_intro.html). A helper function is included to load in your neural data `load_neural_data` in `powerpixel_utils.py`.
 
+## OpenEphys support
+If you use OpenEphys, use the `run_pipeline_openephys.py` script to run the pipeline on your data. Bear in mind that all of the SpikeGLX specific functionality is missing. Specifically, all the prepocessing steps (phase shift correction, remove bad channels, destriping or CAR) and the spike sorting works. However, all the steps after spike sorting will not work (synchronization, neuron-level QC, and compression). Also the ephys-histology alignment GUI relies on output from SpikeGLX specific code so will not work. 
+
 ## Usage workflow
 
 1. Before starting a recording prepare the folder structure, either manually or by running `python PowerPixelsPipeline\prepare_sessions.py`. 
 2. Perform your Neuropixel recording and make sure the output folder of SpikeGLX is one of the probe folders in raw_ephys_data.
 3. Have a look at the raw data of your recording with the `visualize_preprocessing.ipynb` notebook.
 4. If there are peaks in the power spectrum of your recording that you want to filter out during the preprocessing, copy the `notch_filter.json` file to the probe folder and adjust the parameters so that you filter out the frequencies you want.
-5. Start the pipeline by running the command `python PowerPixelsPipeline\run_pipeline.py`, this will search your top-level data folder for any sessions that have the process_me.flag. The pipeline will take a long time to run so best to do it overnight. After the pipeline has run there will be new probe folders for each of the probes in the top-level of the session folder which contain the spike sorted data and other quality metrics.
+5. Start the pipeline by running the command `python PowerPixelsPipeline\run_pipeline_spikeglx.py`, this will search your top-level data folder for any sessions that have the process_me.flag. The pipeline will take a long time to run so best to do it overnight. After the pipeline has run there will be new probe folders for each of the probes in the top-level of the session folder which contain the spike sorted data and other quality metrics.
 6. After you've done your histology, launch Universal Probe Finder in MATLAB and do the Slice Prepper and Slice Finder steps to trace your probe insertions (you can skip Probe Finder).
 7. To transform the tracks to something the alignment GUI can read run the `convert_histology_to_alignment_GUI.m` script in MATLAB. This will save .json files for all the tracks you traced in Universal Probe Finder.
 8. Match these tracks to the recorded probes and move the .json files to the corresponsing probe folders that were created by the pipeline. Once it's in the correct probe folder, rename the .json file to `xyz_picks.json`.
