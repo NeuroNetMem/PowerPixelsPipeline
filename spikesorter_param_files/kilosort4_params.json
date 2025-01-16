@@ -25,10 +25,8 @@
     "ccg_threshold": 0.25,
     "cluster_downsampling": 20,
     "cluster_pcs": 64,
-    "duplicate_spike_bins": 15,
     "do_correction": true,
     "keep_good_only": false,
-    "save_extra_kwargs": false,
     "skip_kilosort_preprocessing": false,
     "scaleproc": null
 }

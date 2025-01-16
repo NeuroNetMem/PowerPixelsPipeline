@@ -7,8 +7,10 @@ dependencies:
   - pip
   - ipython
   - pip:
-    - "spikeinterface[full]"
+    - "spikeinterface[full,widgets]"
     - "docker"
     - "ibllib"
     - "ipympl"
     - "jupyter"
+    - "spikeinterface-gui"
+    - "PySide6"
