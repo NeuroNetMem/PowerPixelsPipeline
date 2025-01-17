@@ -24,7 +24,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
         print(f'\nStarting pipeline in {root} at {datetime.now().strftime("%H:%M")}\n')
         
         # Set session path
-        pp.set_session_path(Path(root))
+        pp.session_path = Path(root)
         
         # Restructure file and folders
         pp.restructure_files()
@@ -67,8 +67,11 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             # Add indication if neurons are good from several sources to the quality metrics
             pp.neuron_level_qc()
             
-            # Compress raw data
-            pp.compress_raw_data()            
+            # Synchronize spike sorting to the nidq clock
+            pp.probe_synchronization()
+            
+            # Compress raw data (still hase issues, don't run)
+            #pp.compress_raw_data()            
                         
             probe_done[i] = True
             print(f'Done! At {datetime.now().strftime("%H:%M")}')

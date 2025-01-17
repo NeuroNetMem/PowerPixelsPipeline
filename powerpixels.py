@@ -23,7 +23,7 @@ from neuropixel import NP2Converter
 from atlaselectrophysiology.extract_files import extract_rmsmap
 from brainbox.metrics.single_units import spike_sorting_metrics
 from ibllib.ephys import ephysqc
-from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting, probes_description
+from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
 from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysCompressNP21, EphysSyncPulses,
                                       EphysSyncRegisterRaw, EphysPulses)
 
@@ -53,14 +53,7 @@ class Pipeline:
         else:
             self.sorter_params = si.get_default_sorter_params(self.settings['SPIKE_SORTER'])
             
-            
-    def set_session_path(self, session_path):
         
-        self.session_path = session_path
-        
-        return
-    
-    
     def set_probe_paths(self, probe_path):
         
         self.probe_path = probe_path
@@ -299,7 +292,9 @@ class Pipeline:
             'noise_levels',
             'templates',
             'template_similarity',
+            'template_metrics',
             'unit_locations',
+            'spike_locations',
             'spike_amplitudes',
             'correlograms',
             'isi_histograms'
@@ -312,6 +307,10 @@ class Pipeline:
             'isi_violation'
             ]
         sorting_analyzer.compute('quality_metrics', metric_names=qc_metrics)
+        
+        si.misc_metrics.compute_drift_metrics(sorting_analyzer)
+                
+        si.compute_template_metrics(sorting_analyzer, metric_names=['recovery_slope'])
         
         return
         
@@ -384,10 +383,32 @@ class Pipeline:
 
         """
         
-        
         # Get kilosort good indication 
         ks_good = pd.read_csv(join(self.sorter_out_path, 'cluster_KSLabel.tsv'), sep='\t')
         
+        """
+        if hasattr(si, 'auto_label_units'):
+            
+            # Apply machine learning model to curate neurons (by Anoushka Jain)
+            sorting_analyzer = si.load_sorting_analyzer(join(self.results_path, 'sorting'))
+            noise_neuron_labels = si.auto_label_units(
+                sorting_analyzer = sorting_analyzer,
+                repo_id = "AnoushkaJain3/noise_neural_classifier",
+                trust_model=True,
+                )
+            
+            
+            ml_good = si.auto_label_units(sorting_analyzer,
+                                          repo_id='AnoushkaJain3/curation_machine_learning_models',
+                                          model_name='noise-mua-sua_classification_model.skops',
+                                          trust_model=True)
+        else:
+            print('Could not run machine learning model for unit curation\n'
+                  'Update SpikeInterface to version >= 0.102.0\n'
+                  'You might have to install SpikeInterface from source')
+            ml_good = np.zeros(ks_good.shape[0])
+        """
+            
         # Calculate IBL neuron level QC
         print('Calculating IBL neuron-level quality metrics..')
         spikes, clusters, channels = load_neural_data(self.session_path,
@@ -399,6 +420,7 @@ class Pipeline:
         # Add to quality metrics
         qc_metrics = pd.read_csv(join(self.results_path, 'sorting', 'extensions', 'quality_metrics',
                                       'metrics.csv'))
+        #qc_metrics['MLLabel'] = 
         qc_metrics['KSLabel'] = ks_good['KSLabel']
         qc_metrics['IBLLabel'] = df_units['label']
         qc_metrics.to_csv(join(self.results_path, 'sorting', 'extensions', 'quality_metrics',

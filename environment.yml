@@ -13,4 +13,6 @@ dependencies:
     - "ipympl"
     - "jupyter"
     - "spikeinterface-gui"
-    - "PySide6"
+    - "huggingface-hub"
+    - "skops"
+    
