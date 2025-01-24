@@ -6,7 +6,6 @@ This pipeline is nothing new! It's all about combining existing modules and pipe
 - [SpikeInterface](https://spikeinterface.readthedocs.io)
 - [ibllib](https://github.com/int-brain-lab/ibllib)
 - [Kilosort](https://github.com/MouseLand/Kilosort)
-- [Bombcell](https://github.com/Julie-Fabre/bombcell)
 - [Universal Probe Finder](https://github.com/JorritMontijn/UniversalProbeFinder)
 
 ## Description of the pipeline elements
@@ -18,7 +17,6 @@ The pipeline goes through the following steps:
 - **Remove bad channels**: bad channels are detected by looking at both coherence with other channels and PSD power in the high-frequency range, then they are interpolated using neighboring channels. Channels outside of the brain are removed.
 - **Destriping or CAR**: For single shank 1.0 probes: removes electrical artifacts by applying a high pass spatial filter over the depth of the probe. For 4-shank 2.0 probes: apply a common average reference.
 - **Spike sorting**: a spike sorting algorithm is used to detect spikes and sort them into units. SpikeInterface supports many [spike sorters](https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters) out of the box 
-- **Bombcell**: a MATLAB package that calculates neuron-level QC metrics (optional).
 - **Synchronization**: each Neuropixel probe and the BNC breakout box has their own clock. This means one has to synchronize the spike times between the probes (if you use more than one) and the synchronization channels which carry timestamps of events (for example: behavioral events or pulses from a camera).
 - **Compression**: the raw binary file is compressed using *mtscomp* which results in a 2-3x reduction in file size.
 - **Histological tracing**: the fluorescent tracks of the probes are traced using the Universal Probe Finder package.
@@ -44,9 +42,7 @@ SpikeInterface uses Docker to launch spike sorters in a docker container, this i
 4. Open a PowerShell terminal and type ```wsl --install```
 
 ### MATLAB 
-At the moment a MATLAB license is necessary to convert the output of Universal Probe Finder to the input of the alignment GUI. The spike sorting is run in a Docker by SpikeInterface, which means that you can even run Kilosort without having MATLAB installed. The Bombcell package is optional and is turned off by default. To run Universal Probe Finder without MATLAB, it has the option to download a compiled version of the package (see [here](https://github.com/JorritMontijn/UniversalProbeFinder?tab=readme-ov-file#using-the-universal-probe-finder-without-a-matlab-license)).
-#### Bombcell
-If you want to use Bombcell as part of the pipeline you need to set up the MATLAB python engine so that python can run the toolbox. Follow [these](https://nl.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html) instructions to set up the engine (tested with MATLAB 20223b).
+At the moment a MATLAB license is necessary to convert the output of Universal Probe Finder to the input of the alignment GUI. The spike sorting is run in a Docker by SpikeInterface, which means that you can even run Kilosort without having MATLAB installed. To run Universal Probe Finder without MATLAB, it has the option to download a compiled version of the package (see [here](https://github.com/JorritMontijn/UniversalProbeFinder?tab=readme-ov-file#using-the-universal-probe-finder-without-a-matlab-license)).
 #### Universal Probe Finder
 Install the Universal Probe Finder by following the instructions [here](https://github.com/JorritMontijn/UniversalProbeFinder). In short: first do ```git clone --recursive https://github.com/JorritMontijn/UniversalProbeFinder``` and add with subfolders to the MATLAB path.
 
@@ -76,7 +72,7 @@ To facilitate the process you can run the helper function `python PowerPixelsPip
 The data that comes out of the Power Pixels pipeline is in [ALF filenaming convention](https://int-brain-lab.github.io/ONE/alf_intro.html). A helper function is included to load in your neural data `load_neural_data` in `powerpixel_utils.py`.
 
 ## OpenEphys support
-If you use OpenEphys, use the `run_pipeline_openephys.py` script to run the pipeline on your data. Bear in mind that all of the SpikeGLX specific functionality is missing. Specifically, all the prepocessing steps (phase shift correction, remove bad channels, destriping or CAR) and the spike sorting works. However, all the steps after spike sorting will not work (synchronization, neuron-level QC, and compression). Also the ephys-histology alignment GUI relies on output from SpikeGLX specific code so will not work. 
+If you use OpenEphys, check out the [OpenEphys branch](https://github.com/NeuroNetMem/PowerPixelsPipeline/tree/openephys). Bear in mind that all of the SpikeGLX specific functionality is missing. Specifically, all the prepocessing steps (phase shift correction, remove bad channels, destriping or CAR) and the spike sorting work. However, all the steps after spike sorting will not work (synchronization, neuron-level QC, and compression). Also the ephys-histology alignment GUI relies on output from SpikeGLX specific code so will not work. 
 
 ## Usage workflow
 
