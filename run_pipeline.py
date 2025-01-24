@@ -63,7 +63,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             
             # Convert Kilosort output to ALF file format and move to results folder
             pp.convert_to_alf()
-            asd
+            
             # Add indication if neurons are good from several sources to the quality metrics
             pp.automatic_curation()
             
