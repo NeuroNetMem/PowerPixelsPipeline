@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan 16 13:11:03 2025
+Written by Guido Meijer
 
-by Guido Meijer
 """
 
 import numpy as np
@@ -19,6 +18,7 @@ import json
 
 import spikeinterface.full as si
 
+from one.api import ONE
 from neuropixel import NP2Converter
 from atlaselectrophysiology.extract_files import extract_rmsmap
 from brainbox.metrics.single_units import spike_sorting_metrics
@@ -52,6 +52,10 @@ class Pipeline:
                 self.sorter_params = json.load(openfile)
         else:
             self.sorter_params = si.get_default_sorter_params(self.settings['SPIKE_SORTER'])
+            
+        # Initialize ONE connection (needed for some IBL steps for some reason)
+        ONE.setup(base_url='https://openalyx.internationalbrainlab.org', silent=True)
+        one = ONE(password='international')
             
         
     def set_probe_paths(self, probe_path):
