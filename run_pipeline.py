@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr  5 14:02:41 2023 
+Written by Guido Meijer
 
-by Guido Meijer
 """
 
 from powerpixels import Pipeline
