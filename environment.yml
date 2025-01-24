@@ -6,14 +6,15 @@ dependencies:
   - python=3.10
   - pip
   - ipython
+  - git
   - pip:
     - "spikeinterface[full,widgets]"
     - "docker"
-    - "ibllib=2.35.3"
+    - "ibllib==2.35.3"
     - "ipympl"
     - "jupyter"
     - "spikeinterface-gui"
     - "huggingface-hub"
     - "skops"
-    - "scikit-learn=1.4.2"
+    - "scikit-learn==1.4.2"
     
