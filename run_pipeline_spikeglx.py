@@ -56,16 +56,16 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             print(f'Detected {sort.get_num_units()} units\n')      
                                    
             # Create sorting analyzer for manual curation in SpikeInterface and save to disk
-            pp.create_sorting_analyzer(sort, rec)
+            pp.neuron_metrics(sort, rec)
             
             # Calculate raw ephys QC metrics
             pp.raw_ephys_qc()
             
             # Convert Kilosort output to ALF file format and move to results folder
             pp.convert_to_alf()
-                       
+            asd
             # Add indication if neurons are good from several sources to the quality metrics
-            pp.neuron_level_qc()
+            pp.automatic_curation()
             
             # Synchronize spike sorting to the nidq clock
             pp.probe_synchronization()

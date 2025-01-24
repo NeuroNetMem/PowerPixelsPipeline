@@ -65,7 +65,7 @@ class Pipeline:
         self.this_probe = split(probe_path)[1]
         self.results_path = Path(join(self.session_path,
                                       self.this_probe + self.settings['IDENTIFIER']))
-        self.ap_file = glob(join(self.probe_path, '*ap.*bin'))[0]       
+        self.ap_file = Path(glob(join(self.probe_path, '*ap.*bin'))[0])
             
         return
     
@@ -264,7 +264,7 @@ class Pipeline:
         return sort
         
     
-    def create_sorting_analyzer(self, sort, rec):
+    def neuron_metrics(self, sort, rec):
         """
         Create sorting analyzer for manual curation in SpikeInterface and save to disk
 
@@ -280,6 +280,7 @@ class Pipeline:
         if isdir(join(self.results_path, 'sorting')):
             return
         
+        # Create a sorting analyzer and save to disk as folder
         sorting_analyzer = si.create_sorting_analyzer(
             sorting=sort,
             recording=rec,
@@ -287,31 +288,35 @@ class Pipeline:
             folder=join(self.results_path, 'sorting'),
             overwrite=True
             )           
+        
+        # Compute a bunch of attributes of the units
         sorting_analyzer.compute([
-            'random_spikes',
             'noise_levels',
+            'correlograms',
+            'isi_histograms',
+            'random_spikes',
+            'waveforms',
+            'principal_components',
             'templates',
             'template_similarity',
-            'template_metrics',
             'unit_locations',
             'spike_locations',
             'spike_amplitudes',
-            'correlograms',
-            'isi_histograms'
             ])
-        qc_metrics = [
-            'num_spikes', 
-            'snr',
-            'firing_rate',
-            'presence_ratio',
-            'isi_violation'
-            ]
-        sorting_analyzer.compute('quality_metrics', metric_names=qc_metrics)
         
-        si.misc_metrics.compute_drift_metrics(sorting_analyzer)
+        # Compute amplitude CV metrics
+        _ = si.compute_amplitude_cv_metrics(sorting_analyzer=sorting_analyzer)
+        
+        # Compute quality metrics
+        _ = sorting_analyzer.compute('quality_metrics', metric_names=si.get_quality_metric_list())
+        _ = sorting_analyzer.compute('quality_metrics', metric_names=si.get_quality_pca_metric_list())        
                 
-        si.compute_template_metrics(sorting_analyzer, metric_names=['recovery_slope'])
+        # Compute template metrics
+        _ = si.compute_template_metrics(sorting_analyzer, include_multi_channel_metrics=True)
         
+        # Compute drift metrics
+        _, _, _, = si.misc_metrics.compute_drift_metrics(sorting_analyzer)
+                        
         return
         
         
@@ -365,7 +370,7 @@ class Pipeline:
         return
             
             
-    def neuron_level_qc(self):
+    def automatic_curation(self):
         """
         Add unit level QC from Kilosort and IBL to the quality metrics so that they show up
         during manual curation
@@ -384,30 +389,26 @@ class Pipeline:
         """
         
         # Get kilosort good indication 
-        ks_good = pd.read_csv(join(self.sorter_out_path, 'cluster_KSLabel.tsv'), sep='\t')
+        ks_metric = pd.read_csv(join(self.sorter_out_path, 'cluster_KSLabel.tsv'), sep='\t')
         
-        """
         if hasattr(si, 'auto_label_units'):
             
-            # Apply machine learning model to curate neurons (by Anoushka Jain)
+            # Load in recording
             sorting_analyzer = si.load_sorting_analyzer(join(self.results_path, 'sorting'))
-            noise_neuron_labels = si.auto_label_units(
+                     
+            # Apply the sua/mua model
+            ml_labels = si.auto_label_units(
                 sorting_analyzer = sorting_analyzer,
-                repo_id = "AnoushkaJain3/noise_neural_classifier",
+                repo_id = "AnoushkaJain3/sua_mua_classifier",
                 trust_model=True,
-                )
-            
-            
-            ml_good = si.auto_label_units(sorting_analyzer,
-                                          repo_id='AnoushkaJain3/curation_machine_learning_models',
-                                          model_name='noise-mua-sua_classification_model.skops',
-                                          trust_model=True)
+            )
+                        
         else:
             print('Could not run machine learning model for unit curation\n'
                   'Update SpikeInterface to version >= 0.102.0\n'
                   'You might have to install SpikeInterface from source')
-            ml_good = np.zeros(ks_good.shape[0])
-        """
+            ml_labels = np.zeros(ks_metric.shape[0])
+        
             
         # Calculate IBL neuron level QC
         print('Calculating IBL neuron-level quality metrics..')
@@ -419,12 +420,26 @@ class Pipeline:
         
         # Add to quality metrics
         qc_metrics = pd.read_csv(join(self.results_path, 'sorting', 'extensions', 'quality_metrics',
-                                      'metrics.csv'))
-        #qc_metrics['MLLabel'] = 
-        qc_metrics['KSLabel'] = ks_good['KSLabel']
-        qc_metrics['IBLLabel'] = df_units['label']
-        qc_metrics.to_csv(join(self.results_path, 'sorting', 'extensions', 'quality_metrics',
-                               'metrics.csv'))
+                                      'metrics.csv'), index_col=0)
+        qc_metrics['KS_label'] = (ks_metric['KSLabel'] == 'good').astype(int)
+        qc_metrics.insert(0, 'KS_label', qc_metrics.pop('KS_label'))
+        qc_metrics['IBL_label'] = df_units['label']
+        qc_metrics.insert(0, 'IBL_label', qc_metrics.pop('IBL_label'))
+        qc_metrics['ML_label'] = (ml_labels['prediction'] == 'sua').astype(int)
+        qc_metrics.insert(0, 'ML_label', qc_metrics.pop('ML_label'))
+        
+        # Save to disk
+        qc_metrics.to_csv(join(
+            self.results_path, 'sorting', 'extensions', 'quality_metrics', 'metrics.csv'))
+        np.save(join(self.results_path, 'clusters.IBLLabel.npy'), qc_metrics['IBL_label'])
+        np.save(join(self.results_path, 'clusters.KSLabel.npy'), qc_metrics['KS_label'])
+        np.save(join(self.results_path, 'clusters.MLLabel.npy'), qc_metrics['ML_label'])
+        if isfile(join(self.results_path, 'cluster_KSLabel.tsv')):
+            os.remove(join(self.results_path, 'cluster_KSLabel.tsv'))
+        
+        # Copy quality metrics to output folder
+        shutil.copy(join(self.results_path, 'sorting', 'extensions', 'quality_metrics', 'metrics.csv'),
+                    join(self.results_path, 'clusters.metrics.csv'))
         
         return
         
@@ -496,6 +511,7 @@ class Pipeline:
                     return
         return
         
+    
 def manual_curation(results_path):
     """
     Launch the manual curation GUI
@@ -515,17 +531,21 @@ def manual_curation(results_path):
     sorting_analyzer = si.load_sorting_analyzer(join(results_path, 'sorting'))
     
     # Launch manual curation GUI            
-    si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=True,
-                            backend='spikeinterface_gui',
-                            label_choices=[
-                                'num_spikes', 
-                                'snr',
-                                'firing_rate',
-                                'presence_ratio',
-                                'isi_violation',
-                                'IBLLabel',
-                                'KSLabel'
-                                ])
+    _ = si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=True,
+                                backend='spikeinterface_gui')
+    
+    # Extract manual curation labels and save in results folder
+    if isfile(join(results_path, 'sorting', 'spikeinterface_gui', 'curation_data.json')):
+        with open(join(results_path, 'sorting', 'spikeinterface_gui', 'curation_data.json')) as f:
+            label_dict = json.load(f)
+    if isfile(join(results_path, 'clusters.manualLabels.npy')):
+        manual_labels = np.load(join(results_path, 'clusters.manualLabels.npy'))
+    else:
+        manual_labels = np.array(['no label'] * sorting_analyzer.unit_ids.shape[0])
+    for this_unit in label_dict['manual_labels']:
+        manual_labels[sorting_analyzer.unit_ids == this_unit['unit_id']] = this_unit['quality']
+    np.save(join(results_path, 'clusters.manualLabels.npy'), manual_labels)
+    
     return       
             
 

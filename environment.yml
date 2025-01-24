@@ -9,10 +9,11 @@ dependencies:
   - pip:
     - "spikeinterface[full,widgets]"
     - "docker"
-    - "ibllib"
+    - "ibllib=2.35.3"
     - "ipympl"
     - "jupyter"
     - "spikeinterface-gui"
     - "huggingface-hub"
     - "skops"
+    - "scikit-learn=1.4.2"
     
