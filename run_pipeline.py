@@ -55,6 +55,9 @@ def run_pipeline():
                 # Spike sorting
                 print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
                 sort = pp.spikesorting(rec, probe_path)   
+                if sort is None:
+                    print('Spike sorting failed!')
+                    continue
                 print(f'Detected {sort.get_num_units()} units\n')      
                                        
                 # Create sorting analyzer for manual curation in SpikeInterface and save to disk
@@ -73,7 +76,7 @@ def run_pipeline():
                 pp.probe_synchronization()
                 
                 # Compress raw data (still hase issues, don't run)
-                #pp.compress_raw_data()            
+                pp.compress_raw_data()            
                             
                 probe_done[i] = True
                 print(f'Done! At {datetime.now().strftime("%H:%M")}')

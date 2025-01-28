@@ -263,7 +263,7 @@ class Pipeline:
             if isdir(join(probe_path, self.settings['SPIKE_SORTER'] + self.settings['IDENTIFIER'])):
                 shutil.rmtree(join(probe_path, self.settings['SPIKE_SORTER'] + self.settings['IDENTIFIER']))
             
-            return None, None, None, None
+            return None
         
         return sort
         
@@ -335,6 +335,9 @@ class Pipeline:
             print('Generating LFP bin file (can take a while)')
             conv = NP2Converter(self.ap_file, compress=False)
             conv._process_NP21(assert_shanks=False)
+            NP2_probe = True
+        else:
+            NP2_probe = False
                                     
         # Compute raw ephys QC metrics
         if not isfile(join(self.probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
@@ -343,6 +346,11 @@ class Pipeline:
             task.run()                
             extract_rmsmap(self.ap_file, out_folder=self.probe_path, spectra=False)
         
+        # If an LF bin file was generated, delete it (results in errors down the line)
+        if NP2_probe and len(glob(join(self.probe_path, '*lf.*bin'))) == 1:
+            os.remove(glob(join(self.probe_path, '*lf.*bin'))[0])
+            os.remove(glob(join(self.probe_path, '*lf.*meta'))[0])
+                
         return
     
     
@@ -502,7 +510,9 @@ class Pipeline:
                 if np.unique(rec.get_property('group')).shape[0] == 1:
                     task = EphysCompressNP1(session_path=self.session_path, pname=self.this_probe)
                 elif np.unique(rec.get_property('group')).shape[0] == 4:
-                    task = EphysCompressNP21(session_path=self.session_path, pname=self.this_probe)
+                    #task = EphysCompressNP21(session_path=self.session_path, pname=self.this_probe)
+                    print('Cannot compress four shank probe recordings yet')
+                    return
                 task.run()
                 
             # Delete original raw data
@@ -542,13 +552,13 @@ def manual_curation(results_path):
     if isfile(join(results_path, 'sorting', 'spikeinterface_gui', 'curation_data.json')):
         with open(join(results_path, 'sorting', 'spikeinterface_gui', 'curation_data.json')) as f:
             label_dict = json.load(f)
-    if isfile(join(results_path, 'clusters.manualLabels.npy')):
-        manual_labels = np.load(join(results_path, 'clusters.manualLabels.npy'))
-    else:
-        manual_labels = np.array(['no label'] * sorting_analyzer.unit_ids.shape[0])
-    for this_unit in label_dict['manual_labels']:
-        manual_labels[sorting_analyzer.unit_ids == this_unit['unit_id']] = this_unit['quality']
-    np.save(join(results_path, 'clusters.manualLabels.npy'), manual_labels)
+        if isfile(join(results_path, 'clusters.manualLabels.npy')):
+            manual_labels = np.load(join(results_path, 'clusters.manualLabels.npy'))
+        else:
+            manual_labels = np.array(['no label'] * sorting_analyzer.unit_ids.shape[0])
+        for this_unit in label_dict['manual_labels']:
+            manual_labels[sorting_analyzer.unit_ids == this_unit['unit_id']] = this_unit['quality']
+        np.save(join(results_path, 'clusters.manualLabels.npy'), manual_labels)
     
     return       
             
