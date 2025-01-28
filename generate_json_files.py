@@ -12,13 +12,12 @@ IDENTIFIER
     Will be appended to the name of the output directory
 DATA_FOLDER 
     Path to the top-level data folder (make sure to use \\ when on Windows machines)
-RUN_BOMBCELL 
-    Whether to run Bombcell, a neuron level QC metric. Needs MATLAB and a functioning python
-    to MATLAB engine set up.
-BOMBCELL_PATH (only necessary when RUN_BOMBCELL is True)
-    Path to the cloned Bombcell repository (https://github.com/Julie-Fabre/bombcell)
-MATLAB_NPY_PATH (only necessary when RUN_BOMBCELL is True)
-    Path to the cloned npy-matlab repository (https://github.com/kwikteam/npy-matlab)
+USE_DOCKER
+    Whether to use Docker while running the spike sorting or using a local installation of Kilosort
+COMPRESS_RAW_DATA
+    Whether to compress the raw bin files
+N_CORES
+    How many CPU cores to use (default is -1 which is all of them)
     
 NIDQ wiring JSON file
 ------------------------
@@ -49,9 +48,8 @@ settings_dict = {
     "IDENTIFIER": "",
     "DATA_FOLDER": "C:\\path\\to\\data",
     "USE_DOCKER": True,
-    "RUN_BOMBCELL": False,
-    "BOMBCELL_PATH": "C:\\path\\to\\bombcell\\repo",
-    "MATLAB_NPY_PATH": "C:\\path\\to\\npy-matlab\\repo"
+    "COMPRESS_RAW_DATA": True,
+    "N_CORES": -1
 }
 
 # NIDQ wiring JSON file
