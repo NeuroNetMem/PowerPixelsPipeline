@@ -1,0 +1,8 @@
+{
+    "SPIKE_SORTER": "kilosort4",
+    "IDENTIFIER": "",
+    "DATA_FOLDER": "/path/to/data/folder",
+    "USE_DOCKER": false,
+    "COMPRESS_RAW_DATA": true,
+    "N_CORES": -1,
+}
