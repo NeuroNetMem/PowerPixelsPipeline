@@ -3,9 +3,9 @@ wiring_files/
 
 settings.json
 
+visualize_preprocessing.ipynb
+
 __pycache__/
 
 .ipynb_checkpoints/
 
-visualize_preprocessing.ipynb
-condaenv.8c19vis0.requirements.txt
