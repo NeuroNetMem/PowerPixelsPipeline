@@ -8,7 +8,7 @@ dependencies:
   - ipython
   - git
   - pip:
-    - "spikeinterface[full,widgets]"
+    - "spikeinterface[full,widgets]==0.102.0"
     - "docker"
     - "ibllib==2.35.3"
     - "ipympl"
@@ -16,5 +16,5 @@ dependencies:
     - "spikeinterface-gui"
     - "huggingface-hub"
     - "skops"
-    - "scikit-learn==1.4.2"
+    - "scikit-learn==1.5.2"
     
