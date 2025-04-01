@@ -20,6 +20,7 @@ import spikeinterface.full as si
 
 from one.api import ONE
 from neuropixel import NP2Converter
+import mtscomp
 from atlaselectrophysiology.extract_files import extract_rmsmap
 from brainbox.metrics.single_units import spike_sorting_metrics
 from ibllib.ephys import ephysqc
@@ -55,7 +56,7 @@ class Pipeline:
             
         # Initialize ONE connection (needed for some IBL steps for some reason)
         ONE.setup(base_url='https://openalyx.internationalbrainlab.org', silent=True)
-        one = ONE(password='international')
+        ONE(password='international')
             
         
     def set_probe_paths(self, probe_path):
@@ -141,13 +142,31 @@ class Pipeline:
 
         """
         
-        # Load in recording
-        if len(glob(join(self.probe_path, '*.cbin'))) > 0:
+        """
+        # Decompress recording if it was compressed by a previous run
+        if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
+
+            # Recording is compressed by a previous run, decompress it before spike sorting
+            cbin_path = glob(join(self.probe_path, '*ap.cbin'))[0]
+            ch_path = glob(join(self.probe_path, '*ch'))[0]
+            r = mtscomp.Reader(chunk_duration=1.)
+            r.open(cbin_path, ch_path)
+            r.tofile(cbin_path[:-4] + 'bin')
+            r.close()
+            
+            # Remove compressed bin file after decompression
+            if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 1)
+                and (len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))) == 1)):
+                os.remove(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))[0])
+                self.ap_file = glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))[0]
+        """
+        
+        if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
             # Recording is already compressed by a previous run, loading in compressed data
             rec = si.read_cbin_ibl(self.probe_path)
-        else:
-            rec = si.read_spikeglx(self.probe_path, stream_id=f'imec{split(self.probe_path)[-1][-1]}.ap')
-        
+        else: 
+            rec = si.read_spikeglx(self.probe_path, stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
+                    
         # Apply high-pass filter
         print('\nApplying high-pass filter.. ')
         rec_filtered = si.highpass_filter(rec, ftype='bessel', dtype='float32')
@@ -300,26 +319,26 @@ class Pipeline:
             'isi_histograms',
             'random_spikes',
             'waveforms',
-            'principal_components',
+            #'principal_components',
             'templates',
             'template_similarity',
             'unit_locations',
-            'spike_locations',
+            #'spike_locations',
             'spike_amplitudes',
             ])
         
         # Compute amplitude CV metrics
-        _ = si.compute_amplitude_cv_metrics(sorting_analyzer=sorting_analyzer)
+        #_ = si.compute_amplitude_cv_metrics(sorting_analyzer=sorting_analyzer)
         
         # Compute quality metrics
         _ = sorting_analyzer.compute('quality_metrics', metric_names=si.get_quality_metric_list())
-        _ = sorting_analyzer.compute('quality_metrics', metric_names=si.get_quality_pca_metric_list())        
+        #_ = sorting_analyzer.compute('quality_metrics', metric_names=si.get_quality_pca_metric_list())        
                 
         # Compute template metrics
         _ = si.compute_template_metrics(sorting_analyzer, include_multi_channel_metrics=True)
         
         # Compute drift metrics
-        _, _, _, = si.misc_metrics.compute_drift_metrics(sorting_analyzer)
+        #_, _, _, = si.misc_metrics.compute_drift_metrics(sorting_analyzer)
                         
         return
         
@@ -374,6 +393,10 @@ class Pipeline:
             os.mkdir(self.results_path)
         ks2_to_alf(self.sorter_out_path, self.probe_path, self.results_path, bin_file=self.ap_file)
         
+        # Delete phy waveforms (we won't use Phy)
+        for phy_file in glob(join(self.results_path, '_phy_*')):
+            os.remove(phy_file)
+        
         # Move LFP power etc. to the alf folder
         qc_files = glob(join(self.probe_path, '_iblqc_*'))
         for ii, this_file in enumerate(qc_files):
@@ -411,7 +434,8 @@ class Pipeline:
             # Apply the sua/mua model
             ml_labels = si.auto_label_units(
                 sorting_analyzer = sorting_analyzer,
-                repo_id = "AnoushkaJain3/sua_mua_classifier",
+                repo_id = 'AnoushkaJain3/sua_mua_classifier_lightweight',
+                #repo_id = 'AnoushkaJain3/sua_mua_classifier',
                 trust_model=True,
             )
                         
@@ -496,27 +520,23 @@ class Pipeline:
         
         """
         
-        # Load in recording to see if it's NP1 one shank or NP2 four shank
+        # Load in recording 
         if len(glob(join(self.probe_path, '*.cbin'))) > 0:
-            # Recording is already compressed by a previous run, loading in compressed data
-            rec = si.read_cbin_ibl(self.probe_path)
+            # Recording is already compressed by a previous run
+            return
         else:
-            rec = si.read_spikeglx(self.probe_path, stream_id=f'imec{split(self.probe_path)[-1][-1]}.ap')
+            rec = si.read_spikeglx(self.probe_path, stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
         
-
         if self.settings['COMPRESS_RAW_DATA']:
             if len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 0:
                 print('Compressing raw binary file')
-                if np.unique(rec.get_property('group')).shape[0] == 1:
-                    task = EphysCompressNP1(session_path=self.session_path, pname=self.this_probe)
-                elif np.unique(rec.get_property('group')).shape[0] == 4:
-                    #task = EphysCompressNP21(session_path=self.session_path, pname=self.this_probe)
-                    print('Cannot compress four shank probe recordings yet')
-                    return
-                task.run()
+                mtscomp.compress(self.ap_file, str(self.ap_file)[:-3] + 'cbin', str(self.ap_file)[:-3] + 'ch',
+                                 sample_rate=rec.get_sampling_frequency(),
+                                 n_channels=rec.get_num_channels() + 1,
+                                 dtype=rec.get_dtype())
                 
             # Delete original raw data
-            if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 0)
+            if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 1)
                 and (len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))) == 1)):
                 try:
                     os.remove(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))[0])
