@@ -1,6 +1,6 @@
 # Power Pixels pipeline for processing of Neuropixel recordings
 
-The Power Pixels pipeline combines the best parts of several pipelines (and even MATLAB) into one Python-based pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. There is a very basic version of the pipeline written for OpenEphys users, however, it misses functionality because this pipeline relies heavily on code from the International Brain Laboratory, which is written for SpikeGLX output.
+The Power Pixels pipeline combines several packages and workflows into one end-to-end pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. 
 
 This pipeline is nothing new! It's all about combining existing modules and pipelines into one, which is especially useful for people who are just starting out doing Neuropixel recordings and maybe have heard of all these tools but need some help getting them all integrated. Power Pixels relies on these amazing open-source projects:
 - [SpikeInterface](https://spikeinterface.readthedocs.io)
@@ -12,7 +12,7 @@ This pipeline is nothing new! It's all about combining existing modules and pipe
 
 ![image](https://github.com/user-attachments/assets/fc39ebc8-2729-4a97-aedc-15498729629c)
 
-The pipeline goes through the following steps:
+The pipeline contains the following elements:
 - **Phase shift correction**: channels on a Neuropixel probe are not recorded simultaneously, there is a small (30 microsecond) delay between the acquisition of a block of channels. Correcting for this small delay greatly improves artifact removal at the "Destriping" step.
 - **Remove bad channels**: bad channels are detected by looking at both coherence with other channels and PSD power in the high-frequency range, then they are interpolated using neighboring channels. Channels outside of the brain are removed.
 - **Destriping or CAR**: For single shank 1.0 probes: removes electrical artifacts by applying a high pass spatial filter over the depth of the probe. For 4-shank 2.0 probes: apply a common average reference.
@@ -34,27 +34,32 @@ It is recommended to install Power Pixels in an Anaconda or Miniforge environmen
 7. You can now activate the environment by typing ```conda activate powerpixels```
 8. Install the iblapps repository by typing `pip install -e iblapps`
 
-### Docker
-SpikeInterface uses Docker to launch spike sorters in a docker container, this is great because it means that you don't need to tinker with grapic card drivers or have MATLAB installed. Instructions to set up Docker on Windows:
+### Spike sorter
+To install a spike sorter there are two options: (1) directly install Kilosort4 in the python environment, or (2) use Docker to run the spike sorter in a container. Note: if you want to use a MATLAB-based spike sorter (like Kilosort 2.5) you will have to pick option 2. 
+
+_Option 1: local installation of Kilosort4_
+1. In a terminal window activate the ``spikeinterface`` environment
+2. Install Kilosort4 by typing ``pip install kilosort``
+3. Remove the CPU version of PyTorch by typing ``pip uninstall torch``
+4. Install the GPU version of PyTorch (for CUDA 11.8) with ``pip3 install torch --index-url https://download.pytorch.org/whl/cu118``.
+
+_Option 2: run spike sorter in Docker_
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 2. Create an account on [Docker Hub](https://hub.docker.com/)
 3. Install WSL2
 4. Open a PowerShell terminal and type ```wsl --install```
 
-### MATLAB 
-At the moment a MATLAB license is necessary to convert the output of Universal Probe Finder to the input of the alignment GUI. The spike sorting is run in a Docker by SpikeInterface, which means that you can even run Kilosort without having MATLAB installed. To run Universal Probe Finder without MATLAB, it has the option to download a compiled version of the package (see [here](https://github.com/JorritMontijn/UniversalProbeFinder?tab=readme-ov-file#using-the-universal-probe-finder-without-a-matlab-license)).
-#### Universal Probe Finder
-Install the Universal Probe Finder by following the instructions [here](https://github.com/JorritMontijn/UniversalProbeFinder). In short: first do ```git clone --recursive https://github.com/JorritMontijn/UniversalProbeFinder``` and add with subfolders to the MATLAB path.
+### Universal Probe Finder
+Altough most pipeline elements are python-based, the histological tracing is done using a MATLAB package so unfortunatly you will need a MATLAB license for this. Install the Universal Probe Finder by following the instructions [here](https://github.com/JorritMontijn/UniversalProbeFinder). In short: first do ```git clone --recursive https://github.com/JorritMontijn/UniversalProbeFinder``` and add with subfolders to the MATLAB path.
 
 ## First time use
-
 After installing all the necessary components you can set up your pipeline for use.
 1. Open your Anaconda or Miniforge prompt.
 2. Activate your environment by typing ```conda activate powerpixels```
 3. Navigate to where you cloned the repository.
 4. Generate setting JSON files ```python PowerPixelsPipeline\generate_json_files.py```.
 5. Open settings.json and fill in your settings (explanations of each item can be found in generate_setting_files.py).
-6. Open nidq.wiring.json and fill in the synchronization channels you have in use.
+6. Open nidq.wiring.json and fill in the synchronization channels you have in use. If you use multiple probes and/or the BNC breakout box you will need to use the 1Hz square wave pulse which is generated by the NIDQ to synchronize them. 
 7. (Optional) If you are planning on using a spike sorter other than Kilosort 2.5 or 3, you can generate the parameter file for this sorter by typing ```python PowerPixelsPipeline\get_default_sorter_params.py -s SPIKE_SORTER``` in which SPIKE_SORTER should be the sorter you want to use (see [here](https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters) for all options). The default parameter file for your sorter will appear in the spikesorter_param_file folder and you can adjust any parameters you wish in there.
 
 *Recommended parameters for Kilosort 2.5 and 3 are provided in the spikesorter_param_files folder, you can change these if you want but bear in mind that, because they come with the repository, they will be overwritten when you pull any new changes from the repo.*
