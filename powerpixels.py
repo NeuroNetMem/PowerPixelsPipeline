@@ -564,8 +564,11 @@ def manual_curation(results_path):
     # Load in sorting analyzer from disk
     sorting_analyzer = si.load_sorting_analyzer(join(results_path, 'sorting'))
     
-    # Launch manual curation GUI            
-    _ = si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=True,
+    # Launch manual curation GUI       
+    unit_properties = ['ML_label', 'IBL_label', 'KS_label', 'firing_rate', 'rp_violations',
+                       'snr', 'amplitude_median', 'presence_ratio']
+    _ = si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=False,
+                                displayed_unit_properties=unit_properties,
                                 backend='spikeinterface_gui')
     
     # Extract manual curation labels and save in results folder
