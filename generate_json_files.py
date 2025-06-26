@@ -44,10 +44,10 @@ from os.path import join, dirname, realpath, isdir
  
 # Settings JSON file
 settings_dict = {
-    "SPIKE_SORTER": "kilosort2_5",  
+    "SPIKE_SORTER": "kilosort4",  
     "IDENTIFIER": "",
     "DATA_FOLDER": "C:\\path\\to\\data",
-    "USE_DOCKER": True,
+    "USE_DOCKER": False,
     "COMPRESS_RAW_DATA": True,
     "N_CORES": -1
 }
@@ -56,8 +56,8 @@ settings_dict = {
 nidq_wiring_dict = {
     "SYSTEM": "3B",
     "SYNC_WIRING_DIGITAL": {
-        "P0.0": "example_sync_channel",
-        "P0.3": "imec_sync"
+        "P0.0": "imec_sync",
+        "P0.1": "example_sync_channel"
     },
     "SYNC_WIRING_ANALOG": {
         "AI0": "example_sync_channel",
