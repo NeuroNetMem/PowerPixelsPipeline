@@ -8,12 +8,12 @@ dependencies:
   - ipython
   - git
   - pip:
-    - "spikeinterface[full,widgets]==0.102.0"
+    - "spikeinterface[full,widgets]==0.102.3"
     - "docker"
-    - "ibllib==2.35.3"
+    - "ibllib==3.3.1"
     - "ipympl"
     - "jupyter"
-    - "spikeinterface-gui"
+    - "spikeinterface-gui==0.11.0"
     - "huggingface-hub"
     - "skops"
     - "scikit-learn==1.5.2"
