@@ -1,4 +1,5 @@
 # Power Pixels pipeline for processing of Neuropixel recordings
+bioRxiv DOI (please cite this preprint if you use the pipeline): https://doi.org/10.1101/2025.06.27.661890
 
 The Power Pixels pipeline combines several packages and workflows into one end-to-end pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. 
 
