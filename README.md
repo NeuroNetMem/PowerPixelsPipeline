@@ -9,6 +9,8 @@ This pipeline is nothing new! It's all about combining existing modules and pipe
 - [ibllib](https://github.com/int-brain-lab/ibllib)
 - [Kilosort](https://github.com/MouseLand/Kilosort)
 - [Universal Probe Finder](https://github.com/JorritMontijn/UniversalProbeFinder)
+- [Bombcell](https://github.com/Julie-Fabre/bombcell)
+- [UnitRefine](https://huggingface.co/SpikeInterface/UnitRefine_sua_mua_classifier)
 
 ## Description of the pipeline elements
 
@@ -89,13 +91,23 @@ If you use OpenEphys, check out the [OpenEphys branch](https://github.com/NeuroN
 3. Have a look at the raw data of your recording with the `visualize_preprocessing.ipynb` notebook.
 4. If there are peaks in the power spectrum of your recording that you want to filter out during the preprocessing, copy the `notch_filter.json` file to the probe folder and adjust the parameters so that you filter out the frequencies you want.
 5. Start the pipeline by running the command `python PowerPixelsPipeline\run_pipeline_spikeglx.py`, this will search your top-level data folder for any sessions that have the process_me.flag. The pipeline will take a long time to run so best to do it overnight. After the pipeline has run there will be new probe folders for each of the probes in the top-level of the session folder which contain the spike sorted data and other quality metrics.
-6. After you've done your histology, launch Universal Probe Finder in MATLAB and do the Slice Prepper and Slice Finder steps to trace your probe insertions (you can skip Probe Finder).
-7. To transform the tracks to something the alignment GUI can read run the `convert_histology_to_alignment_GUI.m` script in MATLAB. This will save .json files for all the tracks you traced in Universal Probe Finder.
-8. Match these tracks to the recorded probes and move the .json files to the corresponsing probe folders that were created by the pipeline. Once it's in the correct probe folder, rename the .json file to `xyz_picks.json`.
-9. Launch the alignment gui by typing `python iblapps\atlaselectrophysiology\ephys_atlas_gui.py -o True`, see instructions on how to use the GUI [here](https://github.com/int-brain-lab/iblapps/wiki/2.-Usage-instructions).
-10. After the alignment is done click Upload and the final channel locations and brain regions will be saved in the `channel_locations.json` file.
-11. You can do manual curation of the spike sorting output using [Phy](https://github.com/cortex-lab/phy) and launching it in the probe folder. If you've run BombCell the quality metrics should appear in Phy automatically.
-12. That's it, enjoy your beautiful data!
+7. After you've done your histology, launch Universal Probe Finder in MATLAB and do the Slice Prepper and Slice Finder steps to trace your probe insertions (you can skip Probe Finder).
+8. To transform the tracks to something the alignment GUI can read run the `convert_histology_to_alignment_GUI.m` script in MATLAB. This will save .json files for all the tracks you traced in Universal Probe Finder.
+9. Match these tracks to the recorded probes and move the .json files to the corresponsing probe folders that were created by the pipeline. Once it's in the correct probe folder, rename the .json file to `xyz_picks.json`.
+10. Launch the alignment gui by typing `python iblapps\atlaselectrophysiology\ephys_atlas_gui.py -o True`, see instructions on how to use the GUI [here](https://github.com/int-brain-lab/iblapps/wiki/2.-Usage-instructions).
+11. After the alignment is done click Upload and the final channel locations and brain regions will be saved in the `channel_locations.json` file.
+12. You can do manual curation of the spike sorting output by running in a python terminal:
+    ```
+    from powerpixels import manual_curation
+    manual_curation("path\to\sorting\results")
+    ```
+    The SpikeInterface manual curation GUI will launch which will include the automatic classification output from Bombcell, UnitRefine and the IBL. You can use the GUI to manually annote units as good, or you can use it to see which one of the automated classification metrics you like and use one of those. They are loaded in together with the neural data so you can easily use them to filter units to use.
+13. You can load in the neural data of your recording with a supplied helper function like this:
+    ```
+    from powerpixels import load_neural_data
+    spikes, clusters, channels = load_neural_data(session_path, probe)
+    ```
+15. That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
 
