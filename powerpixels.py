@@ -613,7 +613,7 @@ def manual_curation(results_path):
     # Launch manual curation GUI       
     unit_properties = ['Bombcell', 'UnitRefine', 'IBL', 'Kilosort', 'firing_rate', 'rp_violations',
                        'snr', 'amplitude_median', 'presence_ratio']
-    _ = si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=False,
+    _ = si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=True,
                                 displayed_unit_properties=unit_properties,
                                 backend='spikeinterface_gui')
     
