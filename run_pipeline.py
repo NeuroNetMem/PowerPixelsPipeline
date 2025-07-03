@@ -46,6 +46,10 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
                 probe_done[i] = True
                 continue
             
+            # Decompress raw data if necessary
+            if pp.ap_file.suffix == '.cbin':
+                pp.decompress()
+            
             # Preprocessing
             rec = pp.preprocessing()
             

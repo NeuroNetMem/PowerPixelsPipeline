@@ -16,6 +16,8 @@ import shutil
 from glob import glob
 import json
 
+import bombcell as bc
+
 import spikeinterface.full as si
 
 from one.api import ONE
@@ -41,7 +43,11 @@ class Pipeline:
         with open(join(dirname(realpath(__file__)), 'wiring_files',
                        f'{self.nidq_sync["SYSTEM"]}.wiring.json'), 'r') as openfile:
             self.probe_sync = json.load(openfile)
-
+        
+        # Check spike sorter
+        if self.settings['SPIKE_SORTER'][:8] != 'kilosort':
+            print('\n --- WARNING: use Kilosort (any version) for full functionality of the pipeline --- \n')
+        
         # Initialize spikeinterface parallel processing
         si.set_global_job_kwargs(n_jobs=self.settings['N_CORES'], progress_bar=True)
         
@@ -61,16 +67,14 @@ class Pipeline:
         
     def set_probe_paths(self, probe_path):
         
-        self.probe_path = probe_path
-        self.sorter_out_path = Path(join(
-            probe_path,
-            self.settings['SPIKE_SORTER'] + self.settings['IDENTIFIER'],
-            'sorter_output')
-            )
+        self.probe_path = Path(probe_path)
+        self.sorter_out_path = (self.probe_path
+                                / (self.settings['SPIKE_SORTER'] + self.settings['IDENTIFIER'])
+                                / 'sorter_output')
         self.this_probe = split(probe_path)[1]
-        self.results_path = Path(join(self.session_path,
-                                      self.this_probe + self.settings['IDENTIFIER']))
-        self.ap_file = Path(glob(join(self.probe_path, '*ap.*bin'))[0])
+        self.results_path = self.session_path / (self.this_probe + self.settings['IDENTIFIER'])
+        self.ap_file = list(self.probe_path.glob('*ap.*bin'))[0]
+        self.meta_file = list(self.probe_path.glob('*ap.meta'))[0]
             
         return
     
@@ -82,23 +86,23 @@ class Pipeline:
         """
         
         # Restructure file and folders
-        if len([i for i in os.listdir(join(self.session_path, 'raw_ephys_data')) if i[:5] == 'probe']) == 0:
-            if len(os.listdir(join(self.session_path, 'raw_ephys_data'))) == 0:
+        if len([i for i in os.listdir(self.session_path / 'raw_ephys_data') if i[:5] == 'probe']) == 0:
+            if len(os.listdir(self.session_path / 'raw_ephys_data')) == 0:
                 print('No ephys data found')
                 return
-            elif len(os.listdir(join(self.session_path, 'raw_ephys_data'))) > 1:
+            elif len(os.listdir(self.session_path / 'raw_ephys_data')) > 1:
                 print('More than one run found, not supported')
                 return 
-            orig_dir = os.listdir(join(self.session_path, 'raw_ephys_data'))[0]
+            orig_dir = os.listdir(self.session_path / 'raw_ephys_data')[0]
             if orig_dir[-2] != 'g':
                 print('Recording is not in SpikeGLX format, skipping file restructuring')
                 return
-            for i, this_dir in enumerate(os.listdir(join(self.session_path, 'raw_ephys_data', orig_dir))):
-                shutil.move(join(self.session_path, 'raw_ephys_data', orig_dir, this_dir),
-                            join(self.session_path, 'raw_ephys_data'))
-            os.rmdir(join(self.session_path, 'raw_ephys_data', orig_dir))
-            for i, this_path in enumerate(glob(join(self.session_path, 'raw_ephys_data', '*imec*'))):
-                os.rename(this_path, join(self.session_path, 'raw_ephys_data', 'probe0' + this_path[-1]))
+            for i, this_dir in enumerate(os.listdir(self.session_path / 'raw_ephys_data' / orig_dir)):
+                shutil.move(self.session_path / 'raw_ephys_data' / orig_dir / this_dir,
+                            self.session_path / 'raw_ephys_data')
+            os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
+            for i, this_path in enumerate(glob(self.session_path / 'raw_ephys_data' / '*imec*')):
+                os.rename(this_path, self.session_path / 'raw_ephys_data' / 'probe0' + this_path[-1])
         return
     
     
@@ -121,7 +125,33 @@ class Pipeline:
         EphysSyncRegisterRaw(session_path=self.session_path, sync_collection='raw_ephys_data').run()
         
         return
-                
+    
+    
+    def decompress(self):
+        """
+        Decompress cbin file if raw data is in compressed format 
+        
+        """
+        
+        # Check if raw data is indeed compressed
+        if self.ap_file.suffix == '.bin':
+            return
+        
+        # Recording is compressed by a previous run, decompress it before spike sorting
+        cbin_path = glob(join(self.probe_path, '*ap.cbin'))[0]
+        ch_path = glob(join(self.probe_path, '*ch'))[0]
+        r = mtscomp.Reader(chunk_duration=1.)
+        r.open(cbin_path, ch_path)
+        r.tofile(cbin_path[:-4] + 'bin')
+        r.close()
+        
+        # Remove compressed bin file after decompression
+        if ((len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))) == 1)
+            and (len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))) == 1)):
+            os.remove(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))[0])
+            self.ap_file = list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))[0]
+        return
+            
     
     def preprocessing(self):
         """
@@ -142,24 +172,6 @@ class Pipeline:
 
         """
         
-        """
-        # Decompress recording if it was compressed by a previous run
-        if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
-
-            # Recording is compressed by a previous run, decompress it before spike sorting
-            cbin_path = glob(join(self.probe_path, '*ap.cbin'))[0]
-            ch_path = glob(join(self.probe_path, '*ch'))[0]
-            r = mtscomp.Reader(chunk_duration=1.)
-            r.open(cbin_path, ch_path)
-            r.tofile(cbin_path[:-4] + 'bin')
-            r.close()
-            
-            # Remove compressed bin file after decompression
-            if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 1)
-                and (len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))) == 1)):
-                os.remove(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))[0])
-                self.ap_file = glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))[0]
-        """
         
         if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
             # Recording is already compressed by a previous run, loading in compressed data
@@ -426,50 +438,84 @@ class Pipeline:
         # Get kilosort good indication 
         ks_metric = pd.read_csv(join(self.sorter_out_path, 'cluster_KSLabel.tsv'), sep='\t')
         
+        # Run Bombcell
+        print('\nRunning Bombcell..\n')
+        if self.settings['SPIKE_SORTER'][-3:] == '2_5':
+            kilosort_version = 2
+        else:
+            kilosort_version = int(self.settings['SPIKE_SORTER'][-1])
+        param = bc.get_default_parameters(self.sorter_out_path, 
+                                          raw_file=self.ap_file,
+                                          meta_file=self.meta_file,
+                                          kilosort_version=kilosort_version)
+        if str(self.ap_file)[-4:] == 'cbin':
+            param['decompress_data'] = True
+        param['plotGlobal'] = False
+        param['verbose'] = False
+        quality_metrics, param, unit_type, unit_type_string = bc.run_bombcell(
+            self.sorter_out_path, self.results_path / 'bombcell', param)
+        
+        # Run UnitRefine
+        print('\nRunning UnitRefine model..', end=' ')
         if hasattr(si, 'auto_label_units'):
             
             # Load in recording
-            sorting_analyzer = si.load_sorting_analyzer(join(self.results_path, 'sorting'))
+            sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
                      
             # Apply the sua/mua model
             ml_labels = si.auto_label_units(
                 sorting_analyzer = sorting_analyzer,
                 repo_id = 'AnoushkaJain3/sua_mua_classifier_lightweight',
-                #repo_id = 'AnoushkaJain3/sua_mua_classifier',
                 trust_model=True,
             )
-                        
+            print('Done')
         else:
             print('Could not run machine learning model for unit curation\n'
                   'Update SpikeInterface to version >= 0.102.0\n'
                   'You might have to install SpikeInterface from source')
             ml_labels = np.zeros(ks_metric.shape[0])
         
-            
         # Calculate IBL neuron level QC
-        print('Calculating IBL neuron-level quality metrics..')
+        print('\nCalculating IBL neuron-level quality metrics..', end=' ')
         spikes, clusters, channels = load_neural_data(self.session_path,
                                                       self.this_probe,
                                                       histology=False, only_good=False)
         df_units, rec_qc = spike_sorting_metrics(spikes['times'], spikes['clusters'],
                                                  spikes['amps'], spikes['depths'])
+        print('Done')
+        
+        # Print results
+        n_units = unit_type_string.shape[0]
+        bc_perc = np.round((np.sum(unit_type_string == "GOOD") / n_units) * 100, 1)
+        ur_perc = np.round((np.sum(ml_labels['prediction'] == 'sua') / n_units) * 100, 1)
+        ibl_perc = np.round((np.sum(df_units['label'] == 1) / n_units) * 100, 1)
+        print('\n---------------------------------------------------------\n',
+              'Automatic curation results',
+              '\n---------------------------------------------------------',
+              f'\nBombcell: {np.sum(unit_type_string == "GOOD")} of {n_units} units classified as good ({bc_perc}%)',
+              f'\nUnitRefine: {np.sum(ml_labels["prediction"] == "sua")} of {n_units} units classified as good ({ur_perc}%)',
+              f'\nIBL: {np.sum(df_units["label"] == 1)} of {n_units} units classified as good ({ibl_perc}%)\n')
+        
         
         # Add to quality metrics
         qc_metrics = pd.read_csv(join(self.results_path, 'sorting', 'extensions', 'quality_metrics',
                                       'metrics.csv'), index_col=0)
-        qc_metrics['KS_label'] = (ks_metric['KSLabel'] == 'good').astype(int)
-        qc_metrics.insert(0, 'KS_label', qc_metrics.pop('KS_label'))
-        qc_metrics['IBL_label'] = df_units['label']
-        qc_metrics.insert(0, 'IBL_label', qc_metrics.pop('IBL_label'))
-        qc_metrics['ML_label'] = (ml_labels['prediction'] == 'sua').astype(int)
-        qc_metrics.insert(0, 'ML_label', qc_metrics.pop('ML_label'))
+        qc_metrics['Kilosort'] = (ks_metric['KSLabel'] == 'good').astype(int)
+        qc_metrics.insert(0, 'Kilosort', qc_metrics.pop('Kilosort'))
+        qc_metrics['IBL'] = df_units['label']
+        qc_metrics.insert(0, 'IBL', qc_metrics.pop('IBL'))
+        qc_metrics['UnitRefine'] = (ml_labels['prediction'] == 'sua').astype(int)
+        qc_metrics.insert(0, 'UnitRefine', qc_metrics.pop('UnitRefine'))
+        qc_metrics['Bombcell'] = unit_type.astype(int)
+        qc_metrics.insert(0, 'Bombcell', qc_metrics.pop('Bombcell'))
         
         # Save to disk
         qc_metrics.to_csv(join(
             self.results_path, 'sorting', 'extensions', 'quality_metrics', 'metrics.csv'))
-        np.save(join(self.results_path, 'clusters.IBLLabel.npy'), qc_metrics['IBL_label'])
-        np.save(join(self.results_path, 'clusters.KSLabel.npy'), qc_metrics['KS_label'])
-        np.save(join(self.results_path, 'clusters.MLLabel.npy'), qc_metrics['ML_label'])
+        np.save(join(self.results_path, 'clusters.IBLLabel.npy'), qc_metrics['IBL'])
+        np.save(join(self.results_path, 'clusters.KilosortLabel.npy'), qc_metrics['Kilosort'])
+        np.save(join(self.results_path, 'clusters.UnitRefineLabel.npy'), qc_metrics['UnitRefine'])
+        np.save(join(self.results_path, 'clusters.BombcellLabel.npy'), qc_metrics['Bombcell'])
         if isfile(join(self.results_path, 'cluster_KSLabel.tsv')):
             os.remove(join(self.results_path, 'cluster_KSLabel.tsv'))
         
@@ -565,7 +611,7 @@ def manual_curation(results_path):
     sorting_analyzer = si.load_sorting_analyzer(join(results_path, 'sorting'))
     
     # Launch manual curation GUI       
-    unit_properties = ['ML_label', 'IBL_label', 'KS_label', 'firing_rate', 'rp_violations',
+    unit_properties = ['Bombcell', 'UnitRefine', 'IBL', 'Kilosort', 'firing_rate', 'rp_violations',
                        'snr', 'amplitude_median', 'presence_ratio']
     _ = si.plot_sorting_summary(sorting_analyzer=sorting_analyzer, curation=False,
                                 displayed_unit_properties=unit_properties,
@@ -628,14 +674,12 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     clusters['cluster_id'] = np.arange(clusters['channels'].shape[0])
     
     # Add cluster qc metrics
-    if isfile(join(session_path, probe, 'clusters.bcUnitType.npy')):
-        clusters['bc_label'] = np.load(join(session_path, probe, 'clusters.bcUnitType.npy'),
-                                       allow_pickle=True)
-    clusters['ks_label'] = pd.read_csv(join(session_path, probe, 'cluster_KSLabel.tsv'),
-                                       sep='\t')['KSLabel']
-    if isfile(join(session_path, probe, 'clusters.iblLabel.tsv')):
-        clusters['ibl_label'] = pd.read_csv(join(session_path, probe, 'cluster_IBLLabel.tsv'),
-                                            sep='\t')['ibl_label']
+    if isfile(join(session_path, probe, 'clusters.BombcellLabel.npy')):
+        clusters['bombcell_label'] = np.load(join(session_path, probe, 'clusters.BombcellLabel.npy'))
+    if isfile(join(session_path, probe, 'clusters.UnitRefineLabel.npy')):
+        clusters['unitrefine_label'] = np.load(join(session_path, probe, 'clusters.UnitRefineLabel.npy'))
+    if isfile(join(session_path, probe, 'clusters.IBLLabel.npy')):
+        clusters['ibl_label'] = np.load(join(session_path, probe, 'clusters.IBLLabel.npy'))
     if isfile(join(session_path, probe, 'cluster_group.tsv')):
         clusters['manual_label'] = pd.read_csv(join(session_path, probe, 'cluster_group.tsv'),
                                                sep='\t')['group']
