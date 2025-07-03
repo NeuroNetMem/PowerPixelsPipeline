@@ -1,3 +1,4 @@
+![GitHub License](https://img.shields.io/github/license/NeuroNetMem/PowerPixelsPipeline)
 # Power Pixels pipeline for processing of Neuropixel recordings
 bioRxiv DOI (please cite this preprint if you use the pipeline): https://doi.org/10.1101/2025.06.27.661890
 
