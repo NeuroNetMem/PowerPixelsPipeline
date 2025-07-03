@@ -632,7 +632,7 @@ def manual_curation(results_path):
     return       
             
 
-def load_neural_data(session_path, probe, histology=True, only_good=True):
+def load_neural_data(session_path, probe, histology=True, keep_units='all'):
     """
     Helper function to read in the spike sorting output from the Power Pixels pipeline.
 
@@ -645,9 +645,13 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     histology : bool, optional
         Whether to load the channel location and brain regions from the output of the alignment GUI.
         If False, no brain regions will be provided. The default is True.
-    only_good : bool, optional
-        Whether to only load in neurons that have been manually labelled in Phy.
-        The default is True.
+    keep_units : str, optional
+        Which units to keep
+        'all' = keep all units (default)
+        'bombcell' = keep units classified as good by Bombcell
+        'unitrefine' = keep units classified as good by UnitRefine
+        'ibl' = keep units classified as good by IBL metrics
+        'manual' = keep units manually annotated as good in the GUI
 
     Returns
     -------
@@ -719,17 +723,34 @@ def load_neural_data(session_path, probe, histology=True, only_good=True):
     channels['axial_um'] = local_coordinates[:, 1]
         
     # Only keep the neurons that are manually labeled as good
-    if only_good:
+    if keep_units == 'all':
+        return spikes, clusters, channels
+    if keep_units == 'bombcell':
+        if 'bombcell_label' not in clusters.keys():
+            raise Exception('No Bombcell labels found! Set keep_units to "all" to load all neurons.')
+        good_units = np.where(clusters['bombcell_label'] == 'good')[0]
+    elif keep_units == 'unitrefine':
+        if 'unitrefine_label' not in clusters.keys():
+            raise Exception('No UnitRefine labels found! Set keep_units to "all" to load all neurons.')
+        good_units = np.where(clusters['unitrefine_label'] == 'good')[0]
+    elif keep_units == 'ibl':
+        if 'ibl_label' not in clusters.keys():
+            raise Exception('No IBL labels found! Set keep_units to "all" to load all neurons.')
+        good_units = np.where(clusters['ibl_label'] == 'good')[0]
+    elif keep_units == 'manual':
         if 'manual_label' not in clusters.keys():
-            raise Exception('No manual cluster labels found! Set only_good to False to load all neurons.')
+            raise Exception('No manual cluster labels found! Set keep_units to "all" to load all neurons.')
         good_units = np.where(clusters['manual_label'] == 'good')[0]
-        spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
-        spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], good_units)]
-        spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], good_units)]
-        spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
-        clusters['acronym'] = clusters['acronym'][good_units]
-        clusters['depths'] = clusters['depths'][good_units]
-        clusters['amps'] = clusters['amps'][good_units]
-        clusters['cluster_id'] = clusters['cluster_id'][good_units]
+    else:
+        raise Exception('keep_units shoud be all, bombcell, unitrefine, ibl or manual')
+      
+    spikes['times'] = spikes['times'][np.isin(spikes['clusters'], good_units)]
+    spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], good_units)]
+    spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], good_units)]
+    spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
+    clusters['acronym'] = clusters['acronym'][good_units]
+    clusters['depths'] = clusters['depths'][good_units]
+    clusters['amps'] = clusters['amps'][good_units]
+    clusters['cluster_id'] = clusters['cluster_id'][good_units]
     
     return spikes, clusters, channels
