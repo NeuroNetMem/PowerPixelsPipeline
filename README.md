@@ -1,5 +1,7 @@
 ![GitHub License](https://img.shields.io/github/license/NeuroNetMem/PowerPixelsPipeline)
-# Power Pixels: A turnkey pipeline for processing of Neuropixel recordings ⚡
+# Power Pixels: A turnkey pipeline for processing of Neuropixel recordings ⚡ 
+<img src="https://github.com/user-attachments/assets/d6ef8eb9-c41e-4d42-b925-6e6010dc7643" alt="Alt text" width="30%" align="right" vspace="20"/>
+
 📄 Please cite the [bioRxiv preprint](https://doi.org/10.1101/2025.06.27.661890) if you use the pipeline 📄 ⭐ And star this repository! ⭐
 
 The Power Pixels pipeline combines several packages and workflows into one end-to-end pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. 
