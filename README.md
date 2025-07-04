@@ -1,6 +1,6 @@
 ![GitHub License](https://img.shields.io/github/license/NeuroNetMem/PowerPixelsPipeline)
-# Power Pixels: a turnkey pipeline for processing of Neuropixel recordings ⚡
-📄 Please cite the [bioRxiv preprint](https://doi.org/10.1101/2025.06.27.661890) if you use the pipeline.
+# Power Pixels: A turnkey pipeline for processing of Neuropixel recordings ⚡
+📄 Please cite the [bioRxiv preprint](https://doi.org/10.1101/2025.06.27.661890) if you use the pipeline 📄
 
 The Power Pixels pipeline combines several packages and workflows into one end-to-end pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. 
 
@@ -14,14 +14,15 @@ This pipeline is nothing new! It's all about combining existing modules and pipe
 
 ## Description of the pipeline elements
 
-![image](https://github.com/user-attachments/assets/fc39ebc8-2729-4a97-aedc-15498729629c)
+![pipeline process](https://github.com/user-attachments/assets/1a6b70e7-6f5f-4c3f-83d8-1de4c1d5ccce)
 
 The pipeline contains the following elements:
 - **Optional manual step: notch filters**: high-frequency noise in specific frequency bands can be filtered out using notch filters targeted to the frequency where the noise is present. 
 - **Phase shift correction**: channels on a Neuropixel probe are not recorded simultaneously, there is a small (30 microsecond) delay between the acquisition of a block of channels. Correcting for this small delay greatly improves artifact removal at the "Destriping" step.
 - **Remove bad channels**: bad channels are detected by looking at both coherence with other channels and PSD power in the high-frequency range, then they are interpolated using neighboring channels. Channels outside of the brain are removed.
 - **Destriping or CAR**: For single shank 1.0 probes: removes electrical artifacts by applying a high pass spatial filter over the depth of the probe. For 4-shank 2.0 probes: apply a common average reference.
-- **Spike sorting**: a spike sorting algorithm is used to detect spikes and sort them into units. SpikeInterface supports many [spike sorters](https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters) out of the box 
+- **Spike sorting**: a spike sorting algorithm is used to detect spikes and sort them into units. SpikeInterface supports many [spike sorters](https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters) out of the box
+- **Automatic classification of single neurons**: The pipeline runs three algorithms for automatic classification of good single units: Bombcell, UnitRefine and the IBL quality criteria.
 - **Synchronization**: each Neuropixel probe and the BNC breakout box has their own clock. This means one has to synchronize the spike times between the probes (if you use more than one) and the synchronization channels which carry timestamps of events (for example: behavioral events or pulses from a camera).
 - **Compression**: the raw binary file is compressed using *mtscomp* which results in a 2-3x reduction in file size.
 - **Histological tracing**: the fluorescent tracks of the probes are traced using the Universal Probe Finder package.
