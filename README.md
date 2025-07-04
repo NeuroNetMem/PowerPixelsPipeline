@@ -99,23 +99,25 @@ If you use OpenEphys, check out the [OpenEphys branch](https://github.com/NeuroN
 11. After the alignment is done click Upload and the final channel locations and brain regions will be saved in the `channel_locations.json` file.
 12. You can do manual curation of the spike sorting output by running in a python terminal:
     ```
-    from powerpixels import manual_curation
+    from powerpixels_utils import manual_curation
     manual_curation("path\to\sorting\results")
     ```
     The SpikeInterface manual curation GUI will launch which will include the automatic classification output from Bombcell, UnitRefine and the IBL. You can use the GUI to manually annote units as good, or you can use it to see which one of the automated classification metrics you like and use one of those. They are loaded in together with the neural data so you can easily use them to filter units to use.
 13. You can load in the neural data of your recording with a supplied helper function like this:
     ```
-    from powerpixels import load_neural_data
+    from powerpixels_utils import load_neural_data
     spikes, clusters, channels = load_neural_data(session_path, probe)
     ```
     For extensive documentation as to what each dataset type in `spikes`, `clusters`, and `channels` means see the documentation [here](https://docs.google.com/document/d/1OqIqqakPakHXRAwceYLwFY9gOrm8_P62XIfCTnHwstg/).
-    You can filter your neurons using one of the automatic curation criteria by adding the flag `keep_units` with the options `'bombcell'`, `'unitrefine'` and `'ibl'`. Alternativly you can do it yourself by using the following dataset types:
+    You can filter your neurons using one of the automatic curation criteria by adding the flag `keep_units` with the options `'bombcell'`, `'unitrefine'`, `'ibl'` and `kilosort`. Alternativly you can do it yourself by using the following dataset types:
 
     `clusters['bombcell_label']`: 0 = noise, 1 = good single neuron, 2 = multi-unit activity, 3 = non-somatic
 
     `clusters['unitrefine_label']`: 0 = multi-unit activity or noise, 1 = good single neuron
 
-    `clusters['ibl_label']`: 0 = noise, 0.33-0.66 = multi-unit activity, 1 = good single neuron 
+    `clusters['ibl_label']`: 0 = noise, 0.33-0.66 = multi-unit activity, 1 = good single neuron
+    
+    `clusters['kilosort_label']`: 0 = multi-unit activity or noise, 1 = good single neuron
    
 That's it, enjoy your beautiful data!
 
