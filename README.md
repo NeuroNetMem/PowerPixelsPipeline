@@ -108,7 +108,16 @@ If you use OpenEphys, check out the [OpenEphys branch](https://github.com/NeuroN
     from powerpixels import load_neural_data
     spikes, clusters, channels = load_neural_data(session_path, probe)
     ```
-15. That's it, enjoy your beautiful data!
+    For extensive documentation as to what each dataset type in `spikes`, `clusters`, and `channels` means see the documentation [here](https://docs.google.com/document/d/1OqIqqakPakHXRAwceYLwFY9gOrm8_P62XIfCTnHwstg/).
+    You can filter your neurons using one of the automatic curation criteria by adding the flag `keep_units` with the options `'bombcell'`, `'unitrefine'` and `'ibl'`. Alternativly you can do it yourself by using the following dataset types:
+
+    `clusters['bombcell_label']`: 0 = noise, 1 = good single neuron, 2 = multi-unit activity, 3 = non-somatic
+
+    `clusters['unitrefine_label']`: 0 = multi-unit activity or noise, 1 = good single neuron
+
+    `clusters['ibl_label']`: 0 = noise, 0.33-0.66 = multi-unit activity, 1 = good single neuron 
+   
+That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
 
