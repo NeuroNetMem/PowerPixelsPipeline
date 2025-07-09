@@ -1,9 +1,5 @@
 
-wiring/
-
-settings.json
-
-visualize_preprocessing.ipynb
+config/
 
 __pycache__/
 
@@ -11,4 +7,4 @@ __pycache__/
 
 src/powerpixels.egg-info/
 
-sorting_params/
+iblapps

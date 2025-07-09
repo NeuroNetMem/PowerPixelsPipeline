@@ -17,7 +17,6 @@ dependencies = [
      "skops",
      "scikit-learn==1.5.2",
      "bombcell",
-     "iblapps @ git+https://github.com/int-brain-lab/iblapps.git@master",
      "kilosort"
 ]
 
