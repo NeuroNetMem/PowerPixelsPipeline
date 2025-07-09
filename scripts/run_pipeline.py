@@ -29,7 +29,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
         pp.restructure_files()
                
         # Create nidq synchronization files
-        if 'nidq_file' in pp.keys():
+        if hasattr(pp, 'nidq_file'):
             pp.nidq_synchronization()
         
         # Loop over multiple probes 
@@ -75,7 +75,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             pp.automatic_curation()
             
             # Synchronize spike sorting to the nidq clock
-            if 'nidq_file' in pp.keys():
+            if hasattr(pp, 'nidq_file'):
                 pp.probe_synchronization()
             
             # Compress raw data 

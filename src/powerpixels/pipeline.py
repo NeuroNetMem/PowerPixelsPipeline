@@ -82,8 +82,8 @@ class Pipeline:
         self.results_path = self.session_path / (self.this_probe + self.settings['IDENTIFIER'])
         self.ap_file = list(self.probe_path.glob('*ap.*bin'))[0]
         self.meta_file = list(self.probe_path.glob('*ap.meta'))[0]
-        if len(list(self.session_path / 'raw_ephys_data'.glob('*.nidq.*bin'))) == 1:
-            self.nidq_file = list(self.session_path / 'raw_ephys_data'.glob('*.nidq.*bin'))[0]
+        if len(list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))) == 1:
+            self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]
             
         return
     
