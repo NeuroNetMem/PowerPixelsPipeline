@@ -1,11 +1,10 @@
 
-wiring_files/
-
-settings.json
-
-visualize_preprocessing.ipynb
+config/
 
 __pycache__/
 
 .ipynb_checkpoints/
 
+src/powerpixels.egg-info/
+
+iblapps

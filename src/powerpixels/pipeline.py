@@ -8,19 +8,15 @@ Written by Guido Meijer
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
 import os
-from os.path import join, isfile, split, isdir, dirname, realpath
+from os.path import join, isfile, split, isdir
 from pathlib import Path
 import shutil
 from glob import glob
 import json
-from powerpixels_utils import load_neural_data
-
+from .utils import load_neural_data
 import bombcell as bc
-
 import spikeinterface.full as si
-
 from one.api import ONE
 from neuropixel import NP2Converter
 import mtscomp
@@ -28,21 +24,31 @@ from atlaselectrophysiology.extract_files import extract_rmsmap
 from brainbox.metrics.single_units import spike_sorting_metrics
 from ibllib.ephys import ephysqc
 from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
-from ibllib.pipes.ephys_tasks import (EphysCompressNP1, EphysCompressNP21, EphysSyncPulses,
-                                      EphysSyncRegisterRaw, EphysPulses)
+from ibllib.pipes.ephys_tasks import EphysSyncPulses, EphysSyncRegisterRaw, EphysPulses
 
 
 class Pipeline:
     
     def __init__(self):
         
+        project_root = Path(__file__).parent.parent.parent
+        config_dir = project_root / 'config'
+        settings_file = config_dir / 'settings.json'
+
+        # Check if the config file exists
+        if not settings_file.is_file():
+            raise FileNotFoundError(
+                f'Configuration file not found at {settings_file}\n'
+                'Please run "powerpixels-setup" to create the default files.'
+            )
+        
         # Load in setting files
-        with open(join(dirname(realpath(__file__)), 'settings.json'), 'r') as openfile:
+        with open(settings_file, 'r') as openfile:
             self.settings = json.load(openfile)
-        with open(join(dirname(realpath(__file__)), 'wiring_files', 'nidq.wiring.json'), 'r') as openfile:
+        with open(config_dir / 'wiring' / 'nidq.wiring.json', 'r') as openfile:
             self.nidq_sync = json.load(openfile)
-        with open(join(dirname(realpath(__file__)), 'wiring_files',
-                       f'{self.nidq_sync["SYSTEM"]}.wiring.json'), 'r') as openfile:
+        with open(config_dir /'wiring'
+                  / f'{self.nidq_sync["SYSTEM"]}.wiring.json', 'r') as openfile:
             self.probe_sync = json.load(openfile)
         
         # Check spike sorter
@@ -53,12 +59,12 @@ class Pipeline:
         si.set_global_job_kwargs(n_jobs=self.settings['N_CORES'], progress_bar=True)
         
         # Load in spike sorting parameters
-        if isfile(join(dirname(realpath(__file__)), 'spikesorter_param_files',
-                       f'{self.settings["SPIKE_SORTER"]}_params.json')):
-            with open(join(dirname(realpath(__file__)), 'spikesorter_param_files',
-                           f'{self.settings["SPIKE_SORTER"]}_params.json'), 'r') as openfile:
+        if (config_dir / 'sorter_params' / f'{self.settings["SPIKE_SORTER"]}_params.json').is_file():
+            with open(config_dir / 'sorter_params'
+                      / f'{self.settings["SPIKE_SORTER"]}_params.json', 'r') as openfile:
                 self.sorter_params = json.load(openfile)
         else:
+            print('Did not find spike sorter parameter file, loading defaults..')
             self.sorter_params = si.get_default_sorter_params(self.settings['SPIKE_SORTER'])
             
         # Initialize ONE connection (needed for some IBL steps for some reason)
@@ -76,6 +82,8 @@ class Pipeline:
         self.results_path = self.session_path / (self.this_probe + self.settings['IDENTIFIER'])
         self.ap_file = list(self.probe_path.glob('*ap.*bin'))[0]
         self.meta_file = list(self.probe_path.glob('*ap.meta'))[0]
+        if len(list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))) == 1:
+            self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]
             
         return
     
@@ -114,8 +122,7 @@ class Pipeline:
         """
         
         # Create synchronization file
-        nidq_file = next(self.session_path.joinpath('raw_ephys_data').glob('*.nidq.*bin'))
-        with open(nidq_file.with_suffix('.wiring.json'), 'w') as fp:
+        with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
             json.dump(self.nidq_sync, fp, indent=1)
         
         for ap_file in self.session_path.joinpath('raw_ephys_data').rglob('*.ap.cbin'):
