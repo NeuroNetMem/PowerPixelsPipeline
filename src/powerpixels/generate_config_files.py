@@ -46,6 +46,8 @@ def main():
     
     # Get paths to where to save the configuration files (in the repository)
     project_root = Path(__file__).parent.parent.parent
+    if not (project_root / 'config').is_dir():
+        (project_root / 'config').mkdir()
     settings_file = project_root / 'config' / 'settings.json'
     wiring_dir = project_root / 'config' /'wiring'
     sorting_dir = project_root / 'config' / 'sorter_params'
