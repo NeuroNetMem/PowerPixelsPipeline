@@ -1,13 +1,13 @@
 ![GitHub License](https://img.shields.io/github/license/NeuroNetMem/PowerPixelsPipeline)
 # Power Pixels: A turnkey pipeline for processing of Neuropixel recordings ⚡ 
-<img src="https://github.com/user-attachments/assets/37d9003a-788a-43d2-a5a6-ff4d7a29f780" alt="Alt text" width="30%" align="right" vspace="20"/>
+<img src="https://github.com/user-attachments/assets/37d9003a-788a-43d2-a5a6-ff4d7a29f780" alt="PowerPixels logo" width="30%" align="right" vspace="20"/>
 
 
 📄 Please cite the [bioRxiv preprint](https://doi.org/10.1101/2025.06.27.661890) if you use the pipeline 📄 ⭐ And star this repository! ⭐
 
 The Power Pixels pipeline combines several packages and workflows into one end-to-end pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system (tested on NI PIXe-1071 with a BNC-2110 breakout board for synchronization channels) using SpikeGLX. 
 
-This pipeline is nothing new! It's all about combining existing modules and pipelines into one, which is especially useful for people who are just starting out doing Neuropixel recordings and maybe have heard of all these tools but need some help getting them all integrated. Power Pixels relies on these amazing open-source projects:
+This pipeline is all about combining existing modules and pipelines into one, which is especially useful for people who are just starting out doing Neuropixel recordings and maybe have heard of all these tools but need some help getting them all integrated. Power Pixels relies on these amazing open-source projects:
 - [SpikeInterface](https://spikeinterface.readthedocs.io)
 - [ibllib](https://github.com/int-brain-lab/ibllib)
 - [Kilosort](https://github.com/MouseLand/Kilosort)
@@ -36,12 +36,10 @@ The pipeline contains the following elements:
 It is recommended to install Power Pixels in an Anaconda or Miniforge environment.
 1. Install [Anaconda](https://www.anaconda.com/) or [Miniforge](https://github.com/conda-forge/miniforge) - Miniforge is the recommended option
 2. Open the Anaconda or Miniforge prompt
-3. Install git by typing ```conda install git``` or ```mamba install git``` depending on whether you use Anaconda or Miniforge, respectively
-4. Navigate to the location on your computer you want the repository to be and clone the repository by typing ```git clone https://github.com/NeuroNetMem/PowerPixelsPipeline```
-5. Additonally clone the iblapps repository ```git clone https://github.com/int-brain-lab/iblapps/```
-6. Create the environment from the provided YML file by typing ```conda env create -f environment.yml``` or ```mamba env create -f environment.yml```
-7. You can now activate the environment by typing ```conda activate powerpixels```
-8. Install the iblapps repository by typing `pip install -e iblapps`
+3. Create a new environment by typing `conda create -n powerpixels python=3.10 git` (use `mamba` instead of `conda` when using Miniforge)
+4. Navigate to the location on your computer you want the repository to be and clone the repository by typing `git clone https://github.com/NeuroNetMem/PowerPixelsPipeline`
+5. Navigating to the repository directory you just cloned in your console (`cd PowerPixelPipeline`) and install PowerPixels with the command `pip install -e .`
+6. You can now activate the environment by typing `conda activate powerpixels` (or `mamba`)
 
 ### Spike sorter
 To install a spike sorter there are two options: (1) directly install Kilosort4 in the python environment, or (2) use Docker to run the spike sorter in a container. Note: if you want to use a MATLAB-based spike sorter (like Kilosort 2.5) you will have to pick option 2. 

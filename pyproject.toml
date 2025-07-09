@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerpixels"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+     "spikeinterface[full,widgets]==0.102.3",
+     "docker",
+     "ibllib==3.3.1",
+     "ipympl",
+     "jupyter",
+     "spikeinterface-gui==0.11.0",
+     "huggingface-hub",
+     "skops",
+     "scikit-learn==1.5.2",
+     "bombcell",
+     "iblapps @ git+https://github.com/int-brain-lab/iblapps.git@master",
+     "kilosort"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[project.scripts]
+powerpixels-setup = "powerpixels.generate_config_files:main"
+

@@ -1,0 +1,42 @@
+{
+    "detect_threshold": 6,
+    "projection_threshold": [
+        10,
+        4
+    ],
+    "preclust_threshold": 8,
+    "whiteningRange": 32.0,
+    "momentum": [
+        20.0,
+        400.0
+    ],
+    "car": true,
+    "minFR": 0.1,
+    "minfr_goodchannels": 0.1,
+    "nblocks": 5,
+    "sig": 20,
+    "freq_min": 150,
+    "sigmaMask": 30,
+    "lam": 10.0,
+    "nPCs": 3,
+    "ntbuff": 64,
+    "nfilt_factor": 4,
+    "NT": null,
+    "AUCsplit": 0.9,
+    "do_correction": true,
+    "wave_length": 61,
+    "keep_good_only": false,
+    "skip_kilosort_preprocessing": false,
+    "scaleproc": null,
+    "save_rez_to_mat": false,
+    "delete_tmp_files": [
+        "matlab_files"
+    ],
+    "delete_recording_dat": false,
+    "pool_engine": "process",
+    "n_jobs": 1,
+    "chunk_duration": "1s",
+    "progress_bar": true,
+    "mp_context": null,
+    "max_threads_per_worker": 1
+}

@@ -1,5 +1,5 @@
 
-wiring_files/
+wiring/
 
 settings.json
 
@@ -9,3 +9,6 @@ __pycache__/
 
 .ipynb_checkpoints/
 
+src/powerpixels.egg-info/
+
+sorting_params/

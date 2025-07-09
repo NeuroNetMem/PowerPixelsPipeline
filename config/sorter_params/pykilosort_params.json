@@ -1,0 +1,57 @@
+{
+    "low_memory": false,
+    "seed": 42,
+    "preprocessing_function": "kilosort2",
+    "save_drift_spike_detections": false,
+    "perform_drift_registration": false,
+    "do_whitening": true,
+    "save_temp_files": true,
+    "fshigh": 300.0,
+    "fslow": null,
+    "minfr_goodchannels": 0.1,
+    "genericSpkTh": 8.0,
+    "nblocks": 5,
+    "sig_datashift": 20.0,
+    "stable_mode": true,
+    "deterministic_mode": true,
+    "datashift": null,
+    "Th": [
+        10,
+        4
+    ],
+    "ThPre": 8,
+    "lam": 10,
+    "minFR": 0.02,
+    "momentum": [
+        20,
+        400
+    ],
+    "sigmaMask": 30,
+    "spkTh": -6,
+    "reorder": 1,
+    "nSkipCov": 25,
+    "ntbuff": 64,
+    "whiteningRange": 32,
+    "scaleproc": 200,
+    "nPCs": 3,
+    "nt0": 61,
+    "nup": 10,
+    "sig": 1,
+    "gain": 1,
+    "templateScaling": 20.0,
+    "loc_range": [
+        5,
+        4
+    ],
+    "long_range": [
+        30,
+        6
+    ],
+    "keep_good_only": false,
+    "pool_engine": "process",
+    "n_jobs": 1,
+    "chunk_duration": "1s",
+    "progress_bar": true,
+    "mp_context": null,
+    "max_threads_per_worker": 1
+}
