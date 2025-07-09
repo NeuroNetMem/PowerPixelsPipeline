@@ -40,6 +40,7 @@ It is recommended to install Power Pixels in an Anaconda or Miniforge environmen
 4. Navigate to the location on your computer you want the repository to be and clone the repository by typing `git clone https://github.com/NeuroNetMem/PowerPixelsPipeline`
 5. Navigating to the repository directory you just cloned in your console (`cd PowerPixelPipeline`) and install PowerPixels with the command `pip install -e .`
 6. You can now activate the environment by typing `conda activate powerpixels` (or `mamba`)
+7. Install `iblapps` by cloning the repository `git clone https://github.com/int-brain-lab/iblapps` and installing it with the command `pip install -e iblapps`
 
 ### Spike sorter
 To install a spike sorter there are two options: (1) directly install Kilosort4 in the python environment, or (2) use Docker to run the spike sorter in a container. Note: if you want to use a MATLAB-based spike sorter (like Kilosort 2.5) you will have to pick option 2. 
