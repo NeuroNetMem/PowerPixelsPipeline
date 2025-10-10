@@ -109,17 +109,17 @@ def load_neural_data(session_path, probe, histology=False, keep_units='all'):
     # Add cluster qc metrics
     if (session_path / probe / 'clusters.bombcellLabels.npy').is_file():
         clusters['bombcell_label'] = np.load(session_path / probe / 'clusters.bombcellLabels.npy')
-    if (session_path / probe / 'clusters.unitrefineLabels.npy'):
+    if (session_path / probe / 'clusters.unitrefineLabels.npy').is_file():
         clusters['unitrefine_label'] = np.load(session_path / probe / 'clusters.unitrefineLabels.npy')
-    elif (session_path / probe / 'clusters.MLLabel.npy'):  # legacy
+    elif (session_path / probe / 'clusters.MLLabel.npy').is_file():  # legacy
         clusters['unitrefine_label'] = np.load(session_path / probe / 'clusters.MLLabel.npy')
     if (session_path / probe / 'clusters.iblLabels.npy').is_file():
         clusters['ibl_label'] = np.load(session_path / probe / 'clusters.iblLabels.npy')
     elif (session_path / probe / 'clusters.IBLLabel.npy').is_file():  # legacy
         clusters['ibl_label'] = np.load(session_path / probe / 'clusters.IBLLabel.npy')
-    if (session_path / probe / 'clusters.kilosortLabels.npy'):
+    if (session_path / probe / 'clusters.kilosortLabels.npy').is_file():
         clusters['kilosort_label'] = np.load(session_path / probe / 'clusters.kilosortLabels.npy')
-    elif (session_path / probe / 'clusters.KSLabel.npy'):  # legacy
+    elif (session_path / probe / 'clusters.KSLabel.npy').is_file():  # legacy
         clusters['kilosort_label'] = np.load(session_path / probe / 'clusters.KSLabel.npy')
     if (session_path / probe / 'clusters.manualLabels.npy').is_file():
         clusters['manual_label'] = np.load(session_path / probe / 'clusters.manualLabels.npy')

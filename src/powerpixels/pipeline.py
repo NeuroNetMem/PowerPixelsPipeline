@@ -110,7 +110,7 @@ class Pipeline:
                 shutil.move(self.session_path / 'raw_ephys_data' / orig_dir / this_dir,
                             self.session_path / 'raw_ephys_data')
             os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
-            for i, this_path in enumerate(glob(self.session_path / 'raw_ephys_data' / '*imec*')):
+            for i, this_path in enumerate((self.session_path / 'raw_ephys_data').rglob('*imec*')):
                 os.rename(this_path, self.session_path / 'raw_ephys_data' / 'probe0' + this_path[-1])
         return
     
