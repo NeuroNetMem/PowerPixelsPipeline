@@ -110,7 +110,7 @@ class Pipeline:
                 shutil.move(self.session_path / 'raw_ephys_data' / orig_dir / this_dir,
                             self.session_path / 'raw_ephys_data')
             os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
-            for i, this_path in enumerate((self.session_path / 'raw_ephys_data').rglob('*imec*')):
+            for i, this_path in enumerate((self.session_path / 'raw_ephys_data').glob('*imec*')):
                 os.rename(this_path, self.session_path / 'raw_ephys_data' / 'probe0' + this_path[-1])
         return
     
@@ -125,7 +125,7 @@ class Pipeline:
         with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
             json.dump(self.nidq_sync, fp, indent=1)
         
-        for ap_file in self.session_path.joinpath('raw_ephys_data').rglob('*.ap.cbin'):
+        for ap_file in self.session_path.joinpath('raw_ephys_data').glob('*.ap.cbin'):
             with open(ap_file.with_suffix('.wiring.json'), 'w') as fp:
                 json.dump(self.probe_sync, fp, indent=1)
         
