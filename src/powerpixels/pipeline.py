@@ -111,7 +111,7 @@ class Pipeline:
                             self.session_path / 'raw_ephys_data')
             os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
             for i, this_path in enumerate((self.session_path / 'raw_ephys_data').glob('*imec*')):
-                os.rename(this_path, self.session_path / 'raw_ephys_data' / 'probe0' + this_path[-1])
+                this_path.rename(self.session_path / 'raw_ephys_data' / ('probe0' + str(this_path)[-1]))
         return
     
     
