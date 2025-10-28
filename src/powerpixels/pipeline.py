@@ -292,7 +292,8 @@ class Pipeline:
             ax.scatter(f[peak_ind], mean_power[peak_ind], marker='x', color='r', zorder=1)
         ax.set(ylabel='Power spectral density', xlabel='Frequency (Hz)')
         plt.tight_layout()
-        plt.savefig(join(self.sorter_path, 'power spectral density.jpg'), dpi=600)
+        plt.savefig(self.session_path / 'raw_ephys_data'
+                    / f'{self.this_probe} power spectral density.jpg', dpi=600)
         
         # Apply notch filter 
         if peak_freqs.shape[0] > 0:
@@ -315,7 +316,8 @@ class Pipeline:
             ax.plot(f, mean_power)
             ax.set(ylabel='Power spectral density', xlabel='Frequency (Hz)')
             plt.tight_layout()
-            plt.savefig(join(self.sorter_path, 'power spectral density after notch filter.jpg'), dpi=600)
+            plt.savefig(self.sorter_path / 'raw_ephys_data'
+                        / f'{self.this_probe} power spectral density filtered.jpg', dpi=600)
             
             rec_final = rec_notch
         else:
@@ -349,13 +351,13 @@ class Pipeline:
             
             # Log error to disk
             print(err)
-            logf = open(self.sorter_path / 'error_log.txt', 'w')
+            logf = open(self.session_path / f'{self.this_probe}_error_log.txt', 'w')
             logf.write(str(err))
             logf.close()
             
             # Delete empty sorting directory
             if self.sorter_path.is_dir():
-                shutil.rmtree(self.sort_path)
+                shutil.rmtree(self.sorter_path)
             
             return None
         
@@ -408,68 +410,32 @@ class Pipeline:
                                 
         return
         
-        
-    def raw_ephys_qc(self):
+
+    def export_data(self, rec):
         """
         Calculate raw ephys QC metrics such as AP band RMS and LFP power per channel
+        Export spike sorted data in a format the alignment GUI can read in
         
         """
         
-        # If there is no LF file (NP2 probes), generate it
-        if len(glob(join(self.probe_path, '*lf.*bin'))) == 0:
-            print('Generating LFP bin file (can take a while)')
-            conv = NP2Converter(self.ap_file, compress=False)
-            conv._process_NP21(assert_shanks=False)
-            NP2_probe = True
-        else:
-            NP2_probe = False
-                                    
-        # Compute raw ephys QC metrics
-        if not isfile(join(self.probe_path, '_iblqc_ephysSpectralDensityAP.power.npy')):
-            task = ephysqc.EphysQC('', session_path=self.session_path, use_alyx=False)
-            task.probe_path = self.probe_path
-            task.run()                
-            extract_rmsmap(self.ap_file, out_folder=self.probe_path, spectra=False)
+        # Load in sorting output
+        sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
         
-        # If an LF bin file was generated, delete it (results in errors down the line)
-        if NP2_probe and len(glob(join(self.probe_path, '*lf.*bin'))) == 1:
-            os.remove(glob(join(self.probe_path, '*lf.*bin'))[0])
-            os.remove(glob(join(self.probe_path, '*lf.*meta'))[0])
-                
-        return
-    
-    
-    def convert_to_alf(self):
-        """
-        Convert Kilosort output to ALF files which are readable by the Open Neurophysiology 
-        Environment (ONE), see more about this file format here: 
-        https://int-brain-lab.github.io/iblenv/docs_external/alf_intro.html
-
-        """        
+        # Load in raw LFP 
+        rec_lfp = si.bandpass_filter(rec, freq_min=1, freq_max=300)
         
-        # Set the dat_file path correctly in params.py before conversion         
-        with open(join(self.sorter_out_path, 'params.py'), 'r') as file:
-            lines = file.readlines()
-        lines[-1] = f"dat_path = '{self.ap_file}'\n"
-        with open(join(self.sorter_out_path, 'params.py'), 'w') as file:
-            file.writelines(lines)
-            
-        # Export as ALF files
-        if not isdir(self.results_path):
-            os.mkdir(self.results_path)
-        ks2_to_alf(self.sorter_path / 'sorter_output', self.probe_path, self.results_path,
-                   bin_file=self.ap_file)
+        # Export data to temporary folder
+        si.export_to_ibl_gui(
+            sorting_analyzer=sorting_analyzer,
+            output_folder=self.results_path / 'exported_data',
+            lfp_recording=rec_lfp,
+            n_jobs=-1
+        )
         
-        # Delete phy waveforms (we won't use Phy)
-        for phy_file in glob(join(self.results_path, '_phy_*')):
-            os.remove(phy_file)
-        
-        # Move LFP power etc. to the alf folder
-        qc_files = glob(join(self.probe_path, '_iblqc_*'))
-        for ii, this_file in enumerate(qc_files):
-            shutil.move(this_file, join(self.results_path, split(this_file)[1]))
-        
-        return
+        # Copy the extracted data to the parent folder
+        for file_path in (self.results_path / 'exported_data').iterdir():
+            shutil.move(file_path, self.results_path)
+        (self.results_path / 'exported_data').rmdir()
             
             
     def automatic_curation(self):
@@ -491,7 +457,8 @@ class Pipeline:
         """
         
         # Get kilosort good indication 
-        ks_metric = pd.read_csv(join(self.sorter_out_path, 'cluster_KSLabel.tsv'), sep='\t')
+        ks_metric = pd.read_csv(join(self.sorter_path / 'sorter_output', 'cluster_KSLabel.tsv'),
+                                sep='\t')
         
         # Run Bombcell
         print('\nRunning Bombcell..\n')
@@ -499,7 +466,7 @@ class Pipeline:
             kilosort_version = 2
         else:
             kilosort_version = int(self.settings['SPIKE_SORTER'][-1])
-        param = bc.get_default_parameters(self.sorter_out_path, 
+        param = bc.get_default_parameters(self.sorter_path / 'sorter_output', 
                                           raw_file=self.ap_file,
                                           meta_file=self.meta_file,
                                           kilosort_version=kilosort_version)
@@ -508,7 +475,7 @@ class Pipeline:
         param['plotGlobal'] = False
         param['verbose'] = False
         quality_metrics, param, unit_type, unit_type_string = bc.run_bombcell(
-            self.sorter_out_path, self.results_path / 'bombcell', param)
+            self.sorter_path / 'sorter_output', self.results_path / 'bombcell', param)
         
         # Run UnitRefine
         print('\nRunning UnitRefine model..', end=' ')

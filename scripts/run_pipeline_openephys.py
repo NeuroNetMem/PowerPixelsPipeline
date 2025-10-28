@@ -62,8 +62,8 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             # Create sorting analyzer for manual curation in SpikeInterface and save to disk
             pp.neuron_metrics(sort, rec)
                         
-            # Convert Kilosort output to ALF file format and move to results folder
-            pp.convert_to_alf()
+            # Export sorting results and LFP metrics
+            pp.export_data(rec)
             
             # Add indication if neurons are good from several sources to the quality metrics
             pp.automatic_curation()
