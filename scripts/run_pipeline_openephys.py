@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+
 Written by Guido Meijer
 
 """
@@ -7,10 +8,9 @@ Written by Guido Meijer
 from powerpixels import Pipeline
 
 import os
-from os.path import join, split, isdir
 import numpy as np
 from datetime import datetime
-from glob import glob
+import spikeinterface.full as si
 from pathlib import Path
 
 # Initialize power pixels pipeline
@@ -33,30 +33,27 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             pp.nidq_synchronization()
         
         # Loop over multiple probes 
-        probes = glob(join(root, 'raw_ephys_data', 'probe*'))
+        stream_names, _ = si.read_openephys(pp.session_path, stream_id='0').get_streams(pp.session_path)
+        probes = np.unique([i[i.find('Probe'):i.find('Probe')+6] for i in stream_names])
         probe_done = np.zeros(len(probes)).astype(bool)
-        for i, probe_path in enumerate(probes):
-            print(f'\nStarting preprocessing of {split(probe_path)[-1]}')
+        for i, this_probe in enumerate(probes):
+            print(f'\nStarting preprocessing of {this_probe}')
             
             # Set probe paths
-            pp.set_probe_paths(Path(probe_path))
+            pp.set_probe_paths(this_probe)
             
             # Check if probe is already processed
-            if isdir(join(pp.session_path, pp.this_probe + pp.settings['IDENTIFIER'])):
+            if pp.results_path.is_dir():
                 print('Probe already processed, moving on')
                 probe_done[i] = True
                 continue
-            
-            # Decompress raw data if necessary
-            if pp.ap_file.suffix == '.cbin':
-                pp.decompress()
-            
+                        
             # Preprocessing
             rec = pp.preprocessing()
             
             # Spike sorting
-            print(f'\nStarting {split(probe_path)[-1]} spike sorting at {datetime.now().strftime("%H:%M")}')
-            sort = pp.spikesorting(rec, probe_path)   
+            print(f'\nStarting {this_probe} spike sorting at {datetime.now().strftime("%H:%M")}')
+            sort = pp.spikesorting(rec)   
             if sort is None:
                 print('Spike sorting failed!')
                 continue
@@ -64,10 +61,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
                                    
             # Create sorting analyzer for manual curation in SpikeInterface and save to disk
             pp.neuron_metrics(sort, rec)
-            
-            # Calculate raw ephys QC metrics
-            pp.raw_ephys_qc()
-            
+                        
             # Convert Kilosort output to ALF file format and move to results folder
             pp.convert_to_alf()
             

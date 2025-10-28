@@ -62,6 +62,8 @@ def main():
             "SPIKE_SORTER": "kilosort4",  
             "IDENTIFIER": "",
             "DATA_FOLDER": "C:\\path\\to\\data",
+            "SINGLE_SHANK": "destripe",
+            "MULTI_SHANK": "car_global",
             "USE_DOCKER": False,
             "COMPRESS_RAW_DATA": True,
             "N_CORES": -1
@@ -121,17 +123,6 @@ def main():
                 outfile.write(json.dumps(sorter_params, indent=4))
         print(f'\nDefault settings for spike sorters generated in {sorting_dir}')
         
-    # Example notch filter file
-    if (project_root / 'config' / 'notch_filter.json').is_file():
-        print('\nExample notch filter configuration file already exists.')
-    else:
-        notch_filter = {
-            "FREQ": [4000, 12000],
-            "Q": [20, 10]
-        }
-        with open(project_root / 'config' / 'notch_filter.json', 'w') as outfile:
-            outfile.write(json.dumps(notch_filter, indent=4))
-        print(f'\nExample notch filter file generated in {project_root / "config"}')
         
 if __name__ == "__main__":
     main()
