@@ -64,8 +64,10 @@ def main():
             "DATA_FOLDER": "C:\\path\\to\\data",
             "SINGLE_SHANK": "destripe",
             "MULTI_SHANK": "car_global",
+            "USE_NIDAQ": True,
             "USE_DOCKER": False,
             "COMPRESS_RAW_DATA": True,
+            "COMPRESSION": "zarr",
             "N_CORES": -1
         }
         with open(settings_file, 'w') as outfile:

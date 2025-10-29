@@ -7,7 +7,7 @@ Written by Guido Meijer
 from powerpixels import Pipeline
 
 import os
-from os.path import join, split, isdir
+from os.path import join, isdir
 import numpy as np
 from datetime import datetime
 from pathlib import Path
@@ -26,10 +26,10 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
         
         # Restructure file and folders
         pp.restructure_files()
-               
-        # Create nidq synchronization files
-        if hasattr(pp, 'nidq_file'):
-            pp.nidq_synchronization()
+        
+        # Initialize NIDAQ synchronization
+        if pp.settings['BNC_BREAKOUT_BOX']:
+            pp.extract_sync_pulses()
         
         # Loop over multiple probes 
         probes = os.listdir(join(root, 'raw_ephys_data'))
@@ -74,7 +74,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             pp.automatic_curation()
             
             # Synchronize spike sorting to the nidq clock
-            if hasattr(pp, 'nidq_file'):
+            if pp.settings['BNC_BREAKOUT_BOX']:
                 pp.probe_synchronization()
             
             # Compress raw data 

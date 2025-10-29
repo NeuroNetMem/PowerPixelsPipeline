@@ -10,7 +10,6 @@ from powerpixels import Pipeline
 import os
 import numpy as np
 from datetime import datetime
-import spikeinterface.full as si
 from pathlib import Path
 
 # Initialize power pixels pipeline
@@ -25,16 +24,9 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
         # Set session path
         pp.session_path = Path(root)
         
-        # Restructure file and folders
-        pp.restructure_files()
-               
-        # Create nidq synchronization files
-        if hasattr(pp, 'nidq_file'):
-            pp.nidq_synchronization()
-        
         # Loop over multiple probes 
-        stream_names, _ = si.read_openephys(pp.session_path, stream_id='0').get_streams(pp.session_path)
-        probes = np.unique([i[i.find('Probe'):i.find('Probe')+6] for i in stream_names])
+        probes = np.unique([i.parts[-1].split('.')[-1][:6]
+                            for i in (pp.session_path / 'raw_ephys_data').rglob('*Probe*')])
         probe_done = np.zeros(len(probes)).astype(bool)
         for i, this_probe in enumerate(probes):
             print(f'\nStarting preprocessing of {this_probe}')
@@ -47,7 +39,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
                 print('Probe already processed, moving on')
                 probe_done[i] = True
                 continue
-                        
+            
             # Preprocessing
             rec = pp.preprocessing()
             
@@ -67,11 +59,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             
             # Add indication if neurons are good from several sources to the quality metrics
             pp.automatic_curation()
-            
-            # Synchronize spike sorting to the nidq clock
-            if hasattr(pp, 'nidq_file'):
-                pp.probe_synchronization()
-            
+                        
             # Compress raw data 
             pp.compress_raw_data()            
                         

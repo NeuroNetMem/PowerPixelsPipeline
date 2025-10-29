@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from os.path import join, isfile, split, isdir
+from os.path import join, isfile, isdir
 from pathlib import Path
 import shutil
 from glob import glob
@@ -18,13 +18,9 @@ from scipy.signal import welch, find_peaks
 from .utils import load_neural_data
 import bombcell as bc
 import spikeinterface.full as si
-from one.api import ONE
-from neuropixel import NP2Converter
 import mtscomp
-from atlaselectrophysiology.extract_files import extract_rmsmap
 from brainbox.metrics.single_units import spike_sorting_metrics
-from ibllib.ephys import ephysqc
-from ibllib.ephys.spikes import ks2_to_alf, sync_spike_sorting
+from ibllib.ephys.spikes import sync_spike_sorting
 from ibllib.pipes.ephys_tasks import EphysSyncPulses, EphysSyncRegisterRaw, EphysPulses
 
 
@@ -50,10 +46,10 @@ class Pipeline:
             raise ValueError('SINGLE_SHANK should be set to "car_global", "car_local" or "destripe"')
         if self.settings['MULTI_SHANK'] not in ['car_local', 'car_global', 'destripe']:
             raise ValueError('MULTI_SHANK should be set to "car_global", "car_local" or "destripe"')
-        with open(config_dir / 'wiring' / 'nidq.wiring.json', 'r') as openfile:
-            self.nidq_sync = json.load(openfile)
-        with open(config_dir /'wiring'
-                  / f'{self.nidq_sync["SYSTEM"]}.wiring.json', 'r') as openfile:
+        if self.settings['BNC_BREAKOUT_BOX']:
+            with open(config_dir / 'wiring' / 'nidq.wiring.json', 'r') as openfile:
+                self.nidq_sync = json.load(openfile)
+        with open(config_dir /'wiring' / '3B.wiring.json', 'r') as openfile:
             self.probe_sync = json.load(openfile)
         
         # Check spike sorter
@@ -72,16 +68,101 @@ class Pipeline:
             print('Did not find spike sorter parameter file, loading defaults..')
             self.sorter_params = si.get_default_sorter_params(self.settings['SPIKE_SORTER'])
             
-        # Initialize ONE connection (needed for some IBL steps for some reason)
-        #ONE.setup(base_url='https://openalyx.internationalbrainlab.org', silent=True)
-        #ONE(password='international')
-            
+
+    def detect_data_format(self):
+                
+        if len(list((self.session_path / 'raw_ephys_data').rglob('continuous.dat'))) > 0:
+            self.data_format = 'openephys'
+            print('OpenEphys recording detected')
+        elif len(list((self.session_path / 'raw_ephys_data').rglob('*ap.meta'))) > 0:
+            self.data_format = 'spikeglx'
+            print('SpikeGLX recording detected, restructuring files')
+        else:
+            print(f'Could not detect recording in {self.session_path / "raw_ephys_data"}')
+            return
+
+
+    def restructure_files(self):
+        """
+        Restructure the raw data files
+    
+        """
         
+        # Detect data format if necessary
+        if not hasattr(self, 'data_format'):
+            self.detect_data_format()
+        
+        # Restructure SpikeGLX recording folder structure
+        if ((self.data_format == 'spikeglx')
+            and len([i for i in os.listdir(self.session_path / 'raw_ephys_data') if i[:5] == 'probe']) == 0):
+            orig_dir = os.listdir(self.session_path / 'raw_ephys_data')[0]
+            for i, this_dir in enumerate(os.listdir(self.session_path / 'raw_ephys_data' / orig_dir)):
+                shutil.move(self.session_path / 'raw_ephys_data' / orig_dir / this_dir,
+                            self.session_path / 'raw_ephys_data')
+            os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
+            for i, this_path in enumerate((self.session_path / 'raw_ephys_data').glob('*imec*')):
+                this_path.rename(self.session_path / 'raw_ephys_data' / ('probe0' + str(this_path)[-1]))
+                
+        return
+
+        
+    def extract_sync_pulses(self):
+        """
+        Extract the synchronization pulses coming into the BNC breakout box of the NIDAQ
+        This also prepares for the synchronization of the spike times to the NIDAQ clock later on
+        
+        """
+        
+        
+        # Detect data format if necessary
+        if not hasattr(self, 'data_format'):
+            self.detect_data_format()
+
+        # Extract sync pulses from spikeGLX recordings
+        if self.data_format == 'spikeglx':
+            # Set path to nidq file
+            if len(list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))) == 1:
+                self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]        
+    
+            # Create synchronization file
+            with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
+                json.dump(self.nidq_sync, fp, indent=1)
+            
+            # Create nidq sync file        
+            EphysSyncRegisterRaw(session_path=self.session_path, sync_collection='raw_ephys_data').run()            
+        
+            # Extract sync pulses    
+            task = EphysSyncPulses(session_path=self.session_path, sync='nidq',
+                                   sync_ext='bin', sync_namespace='spikeglx',
+                                   sync_collection='raw_ephys_data',
+                                   device_collection='raw_ephys_data')
+            task.run()
+        
+            # Extract digital sync timestamps
+            sync_times = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
+            sync_polarities = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
+            sync_channels = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.channels.npy'))
+            for ii, ch_name in enumerate(self.nidq_sync['SYNC_WIRING_DIGITAL'].keys()):
+                if self.nidq_sync['SYNC_WIRING_DIGITAL'][ch_name] == 'imec_sync':
+                    continue
+                nidq_pulses = sync_times[(sync_channels == int(ch_name[-1])) & (sync_polarities == 1)]
+                np.save(join(self.session_path, self.nidq_sync['SYNC_WIRING_DIGITAL'][ch_name] + '.times.npy'),
+                        nidq_pulses)
+                
+        elif self.data_format == 'openephys':
+            # TO DO
+            print('TO DO')
+
+
     def set_probe_paths(self, probe):
         
         # Check if session path is defined
         if not hasattr(self, 'session_path'):
             raise ValueError('Define pp.session_path first!')
+            
+        # Detect data format if necessary
+        if not hasattr(self, 'data_format'):
+            self.detect_data_format()
         
         # Set the current probe and results directory
         self.this_probe = probe
@@ -91,90 +172,74 @@ class Pipeline:
                             / self.this_probe)
         
         # Set SpikeGLX specific paths
-        self.is_spikeglx = False
-        if len(list((self.session_path / 'raw_ephys_data' / probe).glob('*ap.*bin'))) == 1:
-            self.is_spikeglx = True
+        if self.data_format == 'spikeglx':
             self.probe_path = self.session_path / 'raw_ephys_data' / probe
             self.ap_file = list(self.probe_path.glob('*ap.*bin'))[0]
-        if len(list((self.session_path / 'raw_ephys_data' / probe).glob('*ap.meta'))) == 1:
-            self.meta_file = list(self.probe_path.glob('*ap.meta'))[0]
-        if len(list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))) == 1:
-            self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]
+            if len(list((self.session_path / 'raw_ephys_data' / probe).glob('*ap.meta'))) == 1:
+                self.meta_file = list(self.probe_path.glob('*ap.meta'))[0]
+        
+        # Set OpenEphys specific paths
+        elif self.data_format == 'openephys':
+            for ap_path in (self.session_path / 'raw_ephys_data').rglob('continuous*'):
+                if ((ap_path.parent.parts[-1].split('.')[-1] == f'{self.this_probe}-AP')
+                    or (ap_path.parent.parts[-1].split('.')[-1] == f'{self.this_probe}')):
+                    self.ap_file = ap_path
+            self.meta_file = list((self.session_path / 'raw_ephys_data').rglob('structure.oebin'))[0]
 
-        return
-    
-    
-    def restructure_files(self):
-        """
-        Restructure the raw data files
-
-        """
-        
-        # Restructure file and folders
-        if len([i for i in os.listdir(self.session_path / 'raw_ephys_data') if i[:5] == 'probe']) == 0:
-            if len(os.listdir(self.session_path / 'raw_ephys_data')) == 0:
-                print('No ephys data found')
-                return
-            orig_dir = os.listdir(self.session_path / 'raw_ephys_data')[0]
-            if orig_dir[-2] == 'g':
-                print('SpikeGLX recording detected, restructuring files')
-                for i, this_dir in enumerate(os.listdir(self.session_path / 'raw_ephys_data' / orig_dir)):
-                    shutil.move(self.session_path / 'raw_ephys_data' / orig_dir / this_dir,
-                                self.session_path / 'raw_ephys_data')
-                os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
-                for i, this_path in enumerate((self.session_path / 'raw_ephys_data').glob('*imec*')):
-                    this_path.rename(self.session_path / 'raw_ephys_data' / ('probe0' + str(this_path)[-1]))
-            elif os.listdir(self.session_path / 'raw_ephys_data' / orig_dir)[0][:6] == 'Record':
-                print('OpenEphys recording detected')
-                
-        return
-    
-    
-    def nidq_synchronization(self):
-        """
-        Create synchronization file for the nidq
-
-        """
-        
-        # Create synchronization file
-        with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
-            json.dump(self.nidq_sync, fp, indent=1)
-        
-        for ap_file in self.session_path.joinpath('raw_ephys_data').glob('*.ap.cbin'):
-            with open(ap_file.with_suffix('.wiring.json'), 'w') as fp:
-                json.dump(self.probe_sync, fp, indent=1)
-        
-        # Create nidq sync file        
-        EphysSyncRegisterRaw(session_path=self.session_path, sync_collection='raw_ephys_data').run()
-        
         return
     
     
     def decompress(self):
         """
-        Decompress cbin file if raw data is in compressed format 
+        Decompress data before running the pipeline, some elements like Bombcell need to have
+        uncompressed raw data as input
         
         """
-        
-        # Check if raw data is indeed compressed
-        if self.ap_file.suffix == '.bin':
+                
+        # If data is not compressed stop this process
+        if (self.ap_file.suffix == '.bin') or (self.ap_file.suffix == '.dat'):
             return
         
-        # Recording is compressed by a previous run, decompress it before spike sorting
-        cbin_path = glob(join(self.probe_path, '*ap.cbin'))[0]
-        ch_path = glob(join(self.probe_path, '*ch'))[0]
-        r = mtscomp.Reader(chunk_duration=1.)
-        r.open(cbin_path, ch_path)
-        r.tofile(cbin_path[:-4] + 'bin')
-        r.close()
-        
-        # Remove compressed bin file after decompression
-        if ((len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))) == 1)
-            and (len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))) == 1)):
-            os.remove(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))[0])
-            self.ap_file = list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))[0]
+        if self.ap_file.suffix == '.cbin':
+            
+            # Recording is compressed by a previous run, decompress it before spike sorting
+            cbin_path = glob(join(self.probe_path, '*ap.cbin'))[0]
+            ch_path = glob(join(self.probe_path, '*ch'))[0]
+            r = mtscomp.Reader(chunk_duration=1.)
+            r.open(cbin_path, ch_path)
+            r.tofile(cbin_path[:-4] + 'bin')
+            r.close()
+            
+            # Remove compressed bin file after decompression
+            if ((len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))) == 1)
+                and (len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))) == 1)):
+                os.remove(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))[0])
+                self.ap_file = list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))[0]
         return
             
+    
+    def load_raw_binary(self):
+        
+        # Load in raw data
+        if self.data_format == 'spikeglx':
+            if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
+                rec = si.read_cbin_ibl(self.probe_path)
+            else: 
+                rec = si.read_spikeglx(self.probe_path,
+                                       stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
+        
+        elif self.data_format == 'openephys':
+            stream_names, _ = si.read_openephys(
+                self.session_path, stream_id='0').get_streams(self.session_path)
+            these_streams = [i for i in stream_names if self.this_probe in i]
+            if len(these_streams) == 1:  # NP2 recording
+                rec_stream = these_streams[0]
+            elif len(these_streams) == 2:  # NP1 recording
+                rec_stream = [i for i in stream_names if self.this_probe + '-AP' in i][0]
+            rec = si.read_openephys(self.session_path, stream_name=rec_stream)
+            
+        return rec
+    
     
     def preprocessing(self):
         """
@@ -196,24 +261,7 @@ class Pipeline:
         """
         
         # Load in raw data
-        if self.is_spikeglx:
-            if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
-                # Recording is already compressed by a previous run, loading in compressed data
-                rec = si.read_cbin_ibl(self.probe_path)
-            else: 
-                # Load in SpikeGLX raw data
-                rec = si.read_spikeglx(self.probe_path,
-                                       stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
-        else:
-            # Load in OpenEphys data
-            stream_names, _ = si.read_openephys(
-                self.session_path, stream_id='0').get_streams(self.session_path)
-            these_streams = [i for i in stream_names if self.this_probe in i]
-            if len(these_streams) == 1:  # NP2 recording
-                rec_stream = these_streams[0]
-            elif len(these_streams) == 2:  # NP1 recording
-                rec_stream = [i for i in stream_names if self.this_probe + '-AP' in i][0]
-            rec = si.read_openephys(self.session_path, stream_name=rec_stream)
+        rec = self.load_raw_binary()
                     
         # Apply high-pass filter
         print('\nApplying high-pass filter.. ')
@@ -499,8 +547,7 @@ class Pipeline:
         
         # Calculate IBL neuron level QC
         print('\nCalculating IBL neuron-level quality metrics..', end=' ')
-        spikes, clusters, channels = load_neural_data(self.session_path,
-                                                      self.this_probe)
+        spikes, clusters, channels = load_neural_data(self.session_path, self.this_probe)
         df_units, rec_qc = spike_sorting_metrics(spikes['times'], spikes['clusters'],
                                                  spikes['amps'], spikes['depths'])
         print('Done')
@@ -545,20 +592,19 @@ class Pipeline:
                     join(self.results_path, 'clusters.metrics.csv'))
         
         return
-        
+    
         
     def probe_synchronization(self):
         """
-        Synchronize spikes of this probe to the nidq base station
+        Synchronize spikes of this probe to the NIDAQ base station clock
 
         """
        
+        # Create probe wiring file
+        with open(self.ap_file.with_suffix('.wiring.json'), 'w') as fp:
+            json.dump(self.probe_sync, fp, indent=1)
+       
         # Create probe sync file
-        task = EphysSyncPulses(session_path=self.session_path, sync='nidq', pname=self.this_probe,
-                               sync_ext='bin', sync_namespace='spikeglx',
-                               sync_collection='raw_ephys_data',
-                               device_collection='raw_ephys_data')
-        task.run()
         task = EphysPulses(session_path=self.session_path, pname=self.this_probe,
                            sync_collection='raw_ephys_data',
                            device_collection='raw_ephys_data')
@@ -567,16 +613,7 @@ class Pipeline:
         # Synchronize spike sorting to nidq clock
         sync_spike_sorting(self.ap_file, self.results_path)
         
-        # Extract digital sync timestamps
-        sync_times = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
-        sync_polarities = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
-        sync_channels = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.channels.npy'))
-        for ii, ch_name in enumerate(self.nidq_sync['SYNC_WIRING_DIGITAL'].keys()):
-            if ch_name == 'imec_sync':
-                continue
-            nidq_pulses = sync_times[(sync_channels == int(ch_name[-1])) & (sync_polarities == 1)]
-            np.save(join(self.session_path, self.nidq_sync['SYNC_WIRING_DIGITAL'][ch_name] + '.times.npy'),
-                    nidq_pulses)
+
         return
         
     
@@ -587,28 +624,51 @@ class Pipeline:
         
         """
         
-        # Load in recording 
-        if len(glob(join(self.probe_path, '*.cbin'))) > 0:
-            # Recording is already compressed by a previous run
-            return
-        else:
-            rec = si.read_spikeglx(self.probe_path, stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
+        # Load in raw binary
+        rec = self.load_raw_binary()
         
-        if self.settings['COMPRESS_RAW_DATA']:
-            if len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 0:
-                print('Compressing raw binary file')
-                mtscomp.compress(self.ap_file, str(self.ap_file)[:-3] + 'cbin', str(self.ap_file)[:-3] + 'ch',
-                                 sample_rate=rec.get_sampling_frequency(),
-                                 n_channels=rec.get_num_channels() + 1,
-                                 dtype=rec.get_dtype())
-                
-            # Delete original raw data
-            if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 1)
-                and (len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))) == 1)):
-                try:
-                    os.remove(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))[0])
-                except:
-                    print('Could not remove uncompressed ap bin file, delete manually')
-                    return
+        if self.settings['COMPRESSION'] == 'zarr':
+            
+            if self.ap_file.suffix == '.zarr':
+                # Recording is already compressed by a previous run
+                return
+            
+            # Compress raw data to zarr folder
+            rec.save(folder=self.ap_file.parent.parent / 'continuous.zarr', format='zarr')
+            
+            # Move zarr folder to right place
+            shutil.move(self.ap_file.parent.parent / 'continuous.zarr',
+                        self.ap_file.parent / 'continuous.zarr')
+            
+            # Delete original .dat file
+            os.remove(self.ap_file)
+            
+            # Update reference to ap file TO DO
+            self.ap_file = self.ap_file.parent / str(self.ap_file.stem) + '.zarr'
+            
+        elif self.settings['COMPRESSION'] == 'mtscomp':
+        
+            if self.ap_file.suffix == '.cbin':
+                # Recording is already compressed by a previous run
+                return
+            
+            if self.settings['COMPRESS_RAW_DATA']:
+                if len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 0:
+                    print('Compressing raw binary file')
+                    mtscomp.compress(self.ap_file, str(self.ap_file)[:-3] + 'cbin',
+                                     str(self.ap_file)[:-3] + 'ch',
+                                     sample_rate=rec.get_sampling_frequency(),
+                                     n_channels=rec.get_num_channels() + 1,
+                                     dtype=rec.get_dtype())
+                    
+                # Delete original raw data
+                if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 1)
+                    and (len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))) == 1)):
+                    try:
+                        os.remove(glob(join(
+                            self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))[0])
+                    except:
+                        print('Could not remove uncompressed ap bin file, delete manually')
+                        return
         return
         
