@@ -195,7 +195,7 @@ class Pipeline:
         uncompressed raw data as input
         
         """
-                
+
         # If data is not compressed stop this process
         if (self.ap_file.suffix == '.bin') or (self.ap_file.suffix == '.dat'):
             return
@@ -203,18 +203,29 @@ class Pipeline:
         if self.ap_file.suffix == '.cbin':
             
             # Recording is compressed by a previous run, decompress it before spike sorting
-            cbin_path = glob(join(self.probe_path, '*ap.cbin'))[0]
-            ch_path = glob(join(self.probe_path, '*ch'))[0]
+            ch_path = list(self.probe_path.glob('*ch'))[0]
             r = mtscomp.Reader(chunk_duration=1.)
-            r.open(cbin_path, ch_path)
-            r.tofile(cbin_path[:-4] + 'bin')
+            r.open(self.ap_file, ch_path)
+            r.tofile(self.ap_file.parent / (self.ap_file.stem + '.bin'))
             r.close()
             
             # Remove compressed bin file after decompression
-            if ((len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))) == 1)
-                and (len(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))) == 1)):
-                os.remove(list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.cbin'))[0])
-                self.ap_file = list((self.session_path / 'raw_ephys_data' / self.this_probe).glob('*ap.bin'))[0]
+            if self.ap_file.is_file() and Path(self.ap_file.stem + '.bin').is_file():
+                os.remove(self.ap_file)
+            self.ap_file = self.ap_file.parent / (self.ap_file.stem + '.bin')
+            
+        elif self.ap_file.suffix == '.zarr':
+            
+            # Decompress zarr file
+            comp_rec = si.load_extractor(self.ap_file)
+            si.write_binary_recording(
+                comp_rec, file_paths=[self.ap_file.parent / (self.ap_file.stem + '.dat')])
+
+            # Remove compressed bin file after decompression
+            if self.ap_file.is_dir() and Path(self.ap_file.stem + '.dat').is_file():
+                shutil.rmtree(self.ap_file)
+            self.ap_file = self.ap_file.parent / (self.ap_file.stem + '.dat')
+            
         return
             
     
@@ -225,8 +236,9 @@ class Pipeline:
             if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
                 rec = si.read_cbin_ibl(self.probe_path)
             else: 
-                rec = si.read_spikeglx(self.probe_path,
-                                       stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
+                rec = si.read_spikeglx(
+                    self.probe_path,
+                    stream_id=si.get_neo_streams('spikeglx', self.probe_path)[0][0])
         
         elif self.data_format == 'openephys':
             stream_names, _ = si.read_openephys(
@@ -619,8 +631,7 @@ class Pipeline:
     
     def compress_raw_data(self):
         """
-        Compress the raw bin file using mtscomp compression developed by IBL        
-        After compression the file will be a .cbin file instead of .bin
+        Compress raw data using either zarr or mtscomp compression
         
         """
         
@@ -643,8 +654,8 @@ class Pipeline:
             # Delete original .dat file
             os.remove(self.ap_file)
             
-            # Update reference to ap file TO DO
-            self.ap_file = self.ap_file.parent / str(self.ap_file.stem) + '.zarr'
+            # Update reference to ap file
+            self.ap_file = self.ap_file.parent / (str(self.ap_file.stem) + '.zarr')
             
         elif self.settings['COMPRESSION'] == 'mtscomp':
         
@@ -652,23 +663,18 @@ class Pipeline:
                 # Recording is already compressed by a previous run
                 return
             
-            if self.settings['COMPRESS_RAW_DATA']:
-                if len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 0:
-                    print('Compressing raw binary file')
-                    mtscomp.compress(self.ap_file, str(self.ap_file)[:-3] + 'cbin',
-                                     str(self.ap_file)[:-3] + 'ch',
-                                     sample_rate=rec.get_sampling_frequency(),
-                                     n_channels=rec.get_num_channels() + 1,
-                                     dtype=rec.get_dtype())
-                    
-                # Delete original raw data
-                if ((len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.cbin'))) == 1)
-                    and (len(glob(join(self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))) == 1)):
-                    try:
-                        os.remove(glob(join(
-                            self.session_path, 'raw_ephys_data', self.this_probe, '*ap.bin'))[0])
-                    except:
-                        print('Could not remove uncompressed ap bin file, delete manually')
-                        return
+            # Compress
+            mtscomp.compress(self.ap_file, str(self.ap_file)[:-3] + 'cbin',
+                             str(self.ap_file)[:-3] + 'ch',
+                             sample_rate=rec.get_sampling_frequency(),
+                             n_channels=rec.get_num_channels() + 1,
+                             dtype=rec.get_dtype())
+            
+            # Delete original bin file
+            os.remove(self.ap_file)
+            
+            # Update reference to ap file
+            self.ap_file = self.ap_file.parent / (str(self.ap_file.stem) + '.cbin')
+
         return
         
