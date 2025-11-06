@@ -76,7 +76,7 @@ class Pipeline:
             print('OpenEphys recording detected')
         elif len(list((self.session_path / 'raw_ephys_data').rglob('*ap.meta'))) > 0:
             self.data_format = 'spikeglx'
-            print('SpikeGLX recording detected, restructuring files')
+            print('SpikeGLX recording detected')
         else:
             print(f'Could not detect recording in {self.session_path / "raw_ephys_data"}')
             return
@@ -376,14 +376,13 @@ class Pipeline:
             ax.plot(f, mean_power)
             ax.set(ylabel='Power spectral density', xlabel='Frequency (Hz)')
             plt.tight_layout()
-            plt.savefig(self.sorter_path / 'raw_ephys_data'
+            plt.savefig(self.session_path / 'raw_ephys_data'
                         / f'{self.this_probe} power spectral density filtered.jpg', dpi=600)
             
             rec_final = rec_notch
         else:
             rec_final = rec_processed
         
-        rec_final = rec_processed
         return rec_final
     
     
@@ -496,8 +495,27 @@ class Pipeline:
         for file_path in (self.results_path / 'exported_data').iterdir():
             shutil.move(file_path, self.results_path)
         (self.results_path / 'exported_data').rmdir()
+        
+        # Export to NWB
+        if self.settings['NWB_EXPORT']:
+            
+            from neuroconv.datainterfaces import SpikeGLXRecordingInterface
+            from neuroconv.datainterfaces import OpenEphysRecordingInterface
+            from neuroconv.tools.spikeinterface import write_sorting_analyzer_to_nwbfile
             
             
+            metadata = {'NWBFile': {'session_start_time': '2024-01-01T12:00:00-05:00'},
+                        'Subject': {'subject_id': 'John',
+                                    'sex': 'M',
+                                    'species': 'Mus musculus'}}
+            nwbfile = OpenEphysRecordingInterface.create_nwbfile(metadata=metadata)
+            
+            write_sorting_analyzer_to_nwbfile(sorting_analyzer,
+                                     nwbfile,
+                                     overwrite=True,
+                                     metadata=metadata)
+
+    
     def automatic_curation(self):
         """
         Add unit level QC from Kilosort and IBL to the quality metrics so that they show up

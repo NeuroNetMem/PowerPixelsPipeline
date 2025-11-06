@@ -7,7 +7,7 @@ name = "powerpixels"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-     "spikeinterface[full,widgets]==0.102.3",
+     "spikeinterface[full,widgets]==0.103.1",
      "docker",
      "ibllib==3.3.1",
      "ipympl",

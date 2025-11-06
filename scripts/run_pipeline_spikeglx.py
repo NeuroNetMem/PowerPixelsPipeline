@@ -24,6 +24,12 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
         # Set session path
         pp.session_path = Path(root)
         
+        # Detect data format
+        pp.detect_data_format()
+        if pp.data_format == 'openephys':
+            print('WARNING: You are running the SpikeGLX pipeline on an OpenEphys recording!')
+            continue
+        
         # Restructure file and folders
         pp.restructure_files()
         

@@ -68,6 +68,7 @@ def main():
             "USE_DOCKER": False,
             "COMPRESS_RAW_DATA": True,
             "COMPRESSION": "zarr",
+            "NWB_EXPORT": False,
             "N_CORES": -1
         }
         with open(settings_file, 'w') as outfile:
