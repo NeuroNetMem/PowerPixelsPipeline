@@ -341,7 +341,7 @@ class Pipeline:
         mean_power = np.mean(np.vstack(all_power), axis=0)
         
         # Detect peaks
-        peak_inds, peak_props = find_peaks(mean_power, threshold=0.005)
+        peak_inds, peak_props = find_peaks(mean_power, threshold=self.settings['PEAK_THRESHOLD'])
         peak_freqs = f[peak_inds]
         print(f'Detected {peak_inds.shape[0]} peaks in the power spectrum')
         
@@ -359,7 +359,7 @@ class Pipeline:
         if peak_freqs.shape[0] > 0:
             rec_notch = rec_processed
             for freq in peak_freqs:
-                print(f'Applying notch filter at {freq} Hz..')
+                print(f'Applying notch filter at {int(freq)} Hz..')
                 rec_notch = si.notch_filter(rec_notch, freq=freq, q=10)
                 
             # Calculate power spectral density

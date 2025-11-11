@@ -64,6 +64,7 @@ def main():
             "DATA_FOLDER": "C:\\path\\to\\data",
             "SINGLE_SHANK": "destripe",
             "MULTI_SHANK": "car_global",
+            "PEAK_THRESHOLD": 0.0025,
             "USE_NIDAQ": True,
             "USE_DOCKER": False,
             "COMPRESS_RAW_DATA": True,
