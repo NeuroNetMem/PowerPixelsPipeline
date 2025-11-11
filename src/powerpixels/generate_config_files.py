@@ -49,6 +49,8 @@ def main():
     if not (project_root / 'config').is_dir():
         (project_root / 'config').mkdir()
     settings_file = project_root / 'config' / 'settings.json'
+    bombcell_file = project_root / 'config' / 'bombcell_params.json'
+    ibl_qc_file = project_root / 'config' / 'ibl_qc_params.json'
     wiring_dir = project_root / 'config' /'wiring'
     sorting_dir = project_root / 'config' / 'sorter_params'
     
@@ -74,8 +76,59 @@ def main():
         }
         with open(settings_file, 'w') as outfile:
             outfile.write(json.dumps(settings_dict, indent=4))
-        
         print(f'\nExample configuration file generated at {settings_file}')
+        
+    # Bombcell
+    if bombcell_file.is_file():
+        print(f'\nBombcell param file already exists at {bombcell_file}')
+    else:
+        
+        # Generate example settings JSON file
+        bombcell_dict = {
+            "extractRaw": True,
+            "detrendWaveform": True,
+            "computeTimeChunks": False,
+            "computeDrift": False,
+            "maxNPeaks": 2,  
+            "maxNTroughs": 1,
+            "minWvDuration": 100,
+            "maxWvDuration": 1150,
+            "minSpatialDecaySlopeExp": 0.01,
+            "maxSpatialDecaySlopeExp": 0.1,
+            "maxWvBaselineFraction": 0.3,
+            "maxScndPeakToTroughRatio_noise": 0.8,
+            "maxMainPeakToTroughRatio_nonSomatic": 0.8,
+            "maxPeak1ToPeak2Ratio_nonSomatic": 3,
+            "deltaTimeChunk": 360,
+            "maxPercSpikesMissing": 20,
+            "maxRPVviolations": 0.1,
+            "minNumSpikes": 300,
+            "maxPercSpikesMissing": 20,
+            "minPresenceRatio": 0.7,
+            "maxDrift": 100,
+            "minAmplitude": 40,
+            "minSNR": 5,
+            "isoDmin": 20,
+            "lratioMax": 0.3
+        }
+        with open(bombcell_file, 'w') as outfile:
+            outfile.write(json.dumps(bombcell_dict, indent=4))
+        print(f'\nDefault Bombcell param file generated at {bombcell_file}')
+    
+    # IBL QC params
+    if ibl_qc_file.is_file():
+        print(f'\IBL QC param file already exists at {ibl_qc_file}')
+    else:
+        
+        # Generate example settings JSON file
+        ibl_dict = {
+            "acceptable_contamination": 0.1,  
+            "noise_cutoff": dict(quantile_length=.25, n_bins=100, nc_threshold=5, percent_threshold=0.10),
+            "med_amp_thresh_uv": 50
+        }
+        with open(ibl_qc_file, 'w') as outfile:
+            outfile.write(json.dumps(ibl_dict, indent=4))
+        print(f'\nDefault IBL QC param file generated at {ibl_qc_file}')
             
     # Wiring files
     if wiring_dir.is_dir():

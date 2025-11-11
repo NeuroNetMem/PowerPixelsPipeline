@@ -20,6 +20,7 @@ import bombcell as bc
 import spikeinterface.full as si
 import mtscomp
 from brainbox.metrics.single_units import spike_sorting_metrics
+from brainbox.metrics.single_units import METRICS_PARAMS as ibl_qc_default_params
 from ibllib.ephys.spikes import sync_spike_sorting
 from ibllib.pipes.ephys_tasks import EphysSyncPulses, EphysSyncRegisterRaw, EphysPulses
 
@@ -31,6 +32,8 @@ class Pipeline:
         project_root = Path(__file__).parent.parent.parent
         config_dir = project_root / 'config'
         settings_file = config_dir / 'settings.json'
+        bombcell_file = config_dir / 'bombcell_params.json'
+        ibl_qc_file = config_dir / 'ibl_qc_params.json'
 
         # Check if the config file exists
         if not settings_file.is_file():
@@ -39,7 +42,7 @@ class Pipeline:
                 'Please run "powerpixels-setup" to create the default files.'
             )
         
-        # Load in setting files
+        # Load in config files
         with open(settings_file, 'r') as openfile:
             self.settings = json.load(openfile)
         if self.settings['SINGLE_SHANK'] not in ['car_local', 'car_global', 'destripe']:
@@ -51,6 +54,11 @@ class Pipeline:
                 self.nidq_sync = json.load(openfile)
         with open(config_dir /'wiring' / '3B.wiring.json', 'r') as openfile:
             self.probe_sync = json.load(openfile)
+        with open(bombcell_file, 'r') as openfile:
+            self.bombcell_params = json.load(openfile)
+        with open(ibl_qc_file, 'r') as openfile:
+            self.ibl_qc_params = json.load(openfile)
+            
         
         # Check spike sorter
         if self.settings['SPIKE_SORTER'][:8] != 'kilosort':
@@ -347,6 +355,7 @@ class Pipeline:
         # Detect peaks
         peak_inds, peak_props = find_peaks(mean_power, threshold=self.settings['PEAK_THRESHOLD'])
         peak_freqs = f[peak_inds]
+        peak_freqs = peak_freqs[peak_freqs > 2000]  # only select high frequency peaks
         print(f'Detected {peak_inds.shape[0]} peaks in the power spectrum')
         
         # Plot
@@ -551,7 +560,7 @@ class Pipeline:
                                 sep='\t')
         
         # Run Bombcell
-        print('\nRunning Bombcell..\n')
+        print('\nRunning Bombcell..', end=' ')
         if self.settings['SPIKE_SORTER'][-3:] == '2_5':
             kilosort_version = 2
         else:
@@ -560,38 +569,34 @@ class Pipeline:
                                           raw_file=self.ap_file,
                                           meta_file=self.meta_file,
                                           kilosort_version=kilosort_version)
-        if str(self.ap_file)[-4:] == 'cbin':
-            param['decompress_data'] = True
         param['plotGlobal'] = False
         param['verbose'] = False
+        param.update(self.bombcell_params)
         quality_metrics, param, unit_type, unit_type_string = bc.run_bombcell(
             self.sorter_path / 'sorter_output', self.results_path / 'bombcell', param)
+        print('Done')
         
         # Run UnitRefine
         print('\nRunning UnitRefine model..', end=' ')
-        if hasattr(si, 'auto_label_units'):
-            
-            # Load in recording
-            sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
-                     
-            # Apply the sua/mua model
-            ml_labels = si.auto_label_units(
-                sorting_analyzer = sorting_analyzer,
-                repo_id = 'AnoushkaJain3/sua_mua_classifier_lightweight',
-                trust_model=True,
-            )
-            print('Done')
-        else:
-            print('Could not run machine learning model for unit curation\n'
-                  'Update SpikeInterface to version >= 0.102.0\n'
-                  'You might have to install SpikeInterface from source')
-            ml_labels = np.zeros(ks_metric.shape[0])
-        
+       
+        # Load in recording
+        sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
+                 
+        # Apply the sua/mua model
+        ml_labels = si.auto_label_units(
+            sorting_analyzer = sorting_analyzer,
+            repo_id = 'AnoushkaJain3/sua_mua_classifier_lightweight',
+            trust_model=True,
+        )
+        print('Done')
+                
         # Calculate IBL neuron level QC
         print('\nCalculating IBL neuron-level quality metrics..', end=' ')
         spikes, clusters, channels = load_neural_data(self.session_path, self.this_probe)
+        ibl_qc_default_params.update(self.ibl_qc_params)
         df_units, rec_qc = spike_sorting_metrics(spikes['times'], spikes['clusters'],
-                                                 spikes['amps'], spikes['depths'])
+                                                 spikes['amps'], spikes['depths'],
+                                                 params=ibl_qc_default_params)
         print('Done')
         
         # Print results
