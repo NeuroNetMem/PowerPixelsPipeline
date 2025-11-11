@@ -38,7 +38,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
             pp.extract_sync_pulses()
         
         # Loop over multiple probes 
-        probes = os.listdir(join(root, 'raw_ephys_data'))
+        probes = [i for i in os.listdir(pp.session_path / 'raw_ephys_data') if (i[:5] == 'probe') and (len(i) == 7)]
         probe_done = np.zeros(len(probes)).astype(bool)
         for i, this_probe in enumerate(probes):
             print(f'\nStarting preprocessing of {this_probe}')
