@@ -14,7 +14,7 @@ sAtlas = feval(fLoader,strAtlasPath);
 
 % Load in slice file
 [strSliceFile, strSlicePath] = uigetfile('.mat', 'Open slice file');
-sLoad = load(fullpath(strSlicePath, strSliceFile));
+sLoad = load(fullfile(strSlicePath, strSliceFile));
 sSlice = sLoad.sSliceData;
 sTracks = SF_SliceFile2TracksFile(sLoad.sSliceData, sAtlas);
 sTracks.Type = 'native';
