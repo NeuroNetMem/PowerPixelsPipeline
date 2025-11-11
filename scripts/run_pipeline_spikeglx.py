@@ -34,7 +34,7 @@ for root, directory, files in os.walk(pp.settings['DATA_FOLDER']):
         pp.restructure_files()
         
         # Initialize NIDAQ synchronization
-        if pp.settings['BNC_BREAKOUT_BOX']:
+        if pp.settings['USE_NIDAQ']:
             pp.extract_sync_pulses()
         
         # Loop over multiple probes 

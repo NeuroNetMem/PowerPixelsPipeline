@@ -46,7 +46,7 @@ class Pipeline:
             raise ValueError('SINGLE_SHANK should be set to "car_global", "car_local" or "destripe"')
         if self.settings['MULTI_SHANK'] not in ['car_local', 'car_global', 'destripe']:
             raise ValueError('MULTI_SHANK should be set to "car_global", "car_local" or "destripe"')
-        if self.settings['BNC_BREAKOUT_BOX']:
+        if self.settings['USE_NIDAQ']:
             with open(config_dir / 'wiring' / 'nidq.wiring.json', 'r') as openfile:
                 self.nidq_sync = json.load(openfile)
         with open(config_dir /'wiring' / '3B.wiring.json', 'r') as openfile:
