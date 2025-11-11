@@ -9,7 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
      "spikeinterface[full,widgets]==0.103.1",
      "docker",
-     "ibllib==3.3.1",
+     "ibllib==3.4.1",
      "ipympl",
      "jupyter",
      "spikeinterface-gui==0.11.0",
@@ -17,7 +17,9 @@ dependencies = [
      "skops",
      "scikit-learn==1.5.2",
      "bombcell",
-     "kilosort==4.1.2"
+     "kilosort==4.1.2",
+     "neuroconv==0.8.3",
+     "lxml"
 ]
 
 [tool.setuptools]

@@ -231,6 +231,10 @@ class Pipeline:
     
     def load_raw_binary(self):
         
+        # Detect data format if necessary
+        if not hasattr(self, 'data_format'):
+            self.detect_data_format()
+            
         # Load in raw data
         if self.data_format == 'spikeglx':
             if len(glob(join(self.probe_path, '*ap.cbin'))) > 0:
@@ -499,21 +503,29 @@ class Pipeline:
         # Export to NWB
         if self.settings['NWB_EXPORT']:
             
+            print('/nExporting to NWB format/n')
             from neuroconv.datainterfaces import SpikeGLXRecordingInterface
             from neuroconv.datainterfaces import OpenEphysRecordingInterface
             from neuroconv.tools.spikeinterface import write_sorting_analyzer_to_nwbfile
             
-            
-            metadata = {'NWBFile': {'session_start_time': '2024-01-01T12:00:00-05:00'},
-                        'Subject': {'subject_id': 'John',
-                                    'sex': 'M',
-                                    'species': 'Mus musculus'}}
-            nwbfile = OpenEphysRecordingInterface.create_nwbfile(metadata=metadata)
-            
-            write_sorting_analyzer_to_nwbfile(sorting_analyzer,
-                                     nwbfile,
-                                     overwrite=True,
-                                     metadata=metadata)
+            if self.data_format == 'openephys':
+                interface = OpenEphysRecordingInterface(folder_path=self.session_path,
+                                                        stream_name=rec.stream_name)   
+            elif self.data_format == 'spikeglx':
+                interface = SpikeGLXRecordingInterface(folder_path=self.session_path,
+                                                        stream_name=rec.stream_name)   
+            metadata = interface.get_metadata()
+            nwbfile = interface.create_nwbfile(metadata=metadata)
+            if not (self.results_path / 'NWB').is_dir():
+                (self.results_path / 'NWB').mkdir()            
+            write_sorting_analyzer_to_nwbfile(
+                sorting_analyzer=sorting_analyzer,
+                nwbfile_path=self.results_path / 'NWB' / 'sorting_output.nwb',
+                nwbfile=nwbfile,
+                metadata=metadata,
+                overwrite=True,
+                recording=rec
+                )
 
     
     def automatic_curation(self):
