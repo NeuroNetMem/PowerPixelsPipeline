@@ -64,9 +64,9 @@ def main():
             "SPIKE_SORTER": "kilosort4",            # spike sorter to use  
             "IDENTIFIER": "",                       # text to append to this spike sorting run
             "DATA_FOLDER": "C:\\path\\to\\data",    # path to the folder containing the data
-            "SINGLE_SHANK": "destripe",             # options: car_global, car_local, destripe
-            "MULTI_SHANK": "car_global",            # options: car_global, car_local, destripe
-            "LOCAL_RADIUS": (50, 100),              # only for car_local: radius of channels to subtract
+            "SINGLE_SHANK": "car_local",            # options: car_global, car_local, destripe
+            "MULTI_SHANK": "car_local",             # options: car_global, car_local, destripe
+            "LOCAL_RADIUS": (40, 200),              # only for car_local: annulus of channels to subtract
             "PEAK_THRESHOLD": 0.0025,               # threshold of peak detection for high-freq noise
             "USE_NIDAQ": True,                      # whether you use a BNC breakout box
             "USE_DOCKER": False,                    # whether spike sorting should be run in a docker
