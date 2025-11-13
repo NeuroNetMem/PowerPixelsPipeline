@@ -70,9 +70,27 @@ After installing all the necessary components you can set up your pipeline for u
 2. Activate your environment by typing `conda activate powerpixels` (or `mamba`)
 3. Set up the configuration files with the command `powerpixels-setup`
 4. Navigate to where you cloned the repository.
-5. Open config/settings.json and fill in your settings (explanations of each item can be found in /src/powerpixels/generate_json_files.py).
+5. Open config/settings.json and fill in your settings, see below for detailed explanation of all settings.
 6. Open config/wiring/nidq.wiring.json and fill in the synchronization channels you have in use. If you do not use a BNC breakout box you can skip this step. If you do, make sure you wire the 1Hz synchronization pulse from the PXI chassis to the digital channel 0 of the breakout box (see the paper for more details).
 7. (Optional) Adjust the spike sorter parameters to your liking by editing the parameter file in the config/sorter_params folder.
+8. (Optional) Adjust the parameters of Bombcell and the IBL neuron-level QC metrics in the config folder.
+
+## Settings
+<img width="490" height="419" alt="Screenshot 2025-11-13 140701" src="https://github.com/user-attachments/assets/b91e811f-19c8-4453-ab9c-85f4fcbdc762" />
+
+- SPIKE_SORTER: which spike sorter to use, accepts all spike sorters supported by SpikeInterface.
+- IDENTIFIER: this text is appended to the final data folder to destinguish multiple spike sorting runs.
+- DATA_FOLDER: path to the top level folder where your data lives.
+- SINGLE_SHANK: artifact removal method used for single shank probes. Options: "car_global"; global median reference, "car_local"; local median reference, "destripe"; spatial filtering.
+- MULTI_SHANK: artifact removal method for probes with multiple shanks.
+- LOCAL_RADIUS: *only for car_local* the radius in um around each channel to select channels to subtract from it.
+- PEAK_THRESHOLD: the threshold for peak detection in the power spectrum which will be filtered out to reduce high-frequency noise.
+- USE_NIDAQ: whether you use a BNC-breakout box with synchronization channels.
+- USE_DOCKER: whether to run the spike sorting in a Docker container.
+- COMPRESS_RAW_DATA: whether to compress the raw data.
+- COMPRESSION: compression method, options: zarr or mtscomp.
+- NWB_EXPORT: whether to export the spike sorting results as an NWB file.
+- N_CORES: how many CPU's to use for preprocessing (-1 is all).
 
 ## Folder structure
 The pipeline is in principle agnostic to how your data is organized at a high level. The session folder can have any name and can be located anywhere in your top level data directory. However, each session folder does need to abide by some formatting requirements. Inside each session folder there needs to be a raw_ephys_data folder in which should be the output folder of SpikeGLX or OpenEphys. For the pipeline to find which session folder to process you need to create a process_me.flag file and put it in the session folder.
@@ -121,6 +139,7 @@ The data that comes out of the Power Pixels pipeline is (1) raw spike sorter out
 That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
+
 
 
 
