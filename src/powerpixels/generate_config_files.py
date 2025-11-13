@@ -61,18 +61,19 @@ def main():
         
         # Generate example settings JSON file
         settings_dict = {
-            "SPIKE_SORTER": "kilosort4",  
-            "IDENTIFIER": "",
-            "DATA_FOLDER": "C:\\path\\to\\data",
-            "SINGLE_SHANK": "destripe",
-            "MULTI_SHANK": "car_global",
-            "PEAK_THRESHOLD": 0.0025,
-            "USE_NIDAQ": True,
-            "USE_DOCKER": False,
-            "COMPRESS_RAW_DATA": True,
-            "COMPRESSION": "zarr",
-            "NWB_EXPORT": False,
-            "N_CORES": -1
+            "SPIKE_SORTER": "kilosort4",            # spike sorter to use  
+            "IDENTIFIER": "",                       # text to append to this spike sorting run
+            "DATA_FOLDER": "C:\\path\\to\\data",    # path to the folder containing the data
+            "SINGLE_SHANK": "destripe",             # options: car_global, car_local, destripe
+            "MULTI_SHANK": "car_global",            # options: car_global, car_local, destripe
+            "LOCAL_RADIUS": (50, 100),              # only for car_local: radius of channels to subtract
+            "PEAK_THRESHOLD": 0.0025,               # threshold of peak detection for high-freq noise
+            "USE_NIDAQ": True,                      # whether you use a BNC breakout box
+            "USE_DOCKER": False,                    # whether spike sorting should be run in a docker
+            "COMPRESS_RAW_DATA": True,              # whether to compress raw data
+            "COMPRESSION": "zarr",                  # compression options: zarr or mtscomp
+            "NWB_EXPORT": False,                    # whether to export the spike sorted data as NWB
+            "N_CORES": -1                           # how many CPU's to use (-1 is all)
         }
         with open(settings_file, 'w') as outfile:
             outfile.write(json.dumps(settings_dict, indent=4))
@@ -117,12 +118,13 @@ def main():
     
     # IBL QC params
     if ibl_qc_file.is_file():
-        print(f'\IBL QC param file already exists at {ibl_qc_file}')
+        print(f'\nIBL QC param file already exists at {ibl_qc_file}')
     else:
         
         # Generate example settings JSON file
         ibl_dict = {
-            "acceptable_contamination": 0.1,  
+            "acceptable_contamination": 10,
+            "RPmax_confidence": 90,
             "noise_cutoff": dict(quantile_length=.25, n_bins=100, nc_threshold=5, percent_threshold=0.10),
             "med_amp_thresh_uv": 50
         }

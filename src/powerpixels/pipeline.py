@@ -16,7 +16,6 @@ from glob import glob
 import json
 from scipy.signal import welch, find_peaks
 from .utils import load_neural_data
-import bombcell as bc
 import spikeinterface.full as si
 import mtscomp
 from brainbox.metrics.single_units import spike_sorting_metrics
@@ -294,35 +293,34 @@ class Pipeline:
         # Correct for inter-sample phase shift
         print('Correcting for phase shift.. ')
         rec_shifted = si.phase_shift(rec_filtered)
-        
-        # Detect and interpolate over bad channels
-        print('Detecting and interpolating over bad channels.. ')
-        
+                
         # Do common average referencing before detecting bad channels
         rec_comref = si.common_reference(rec_filtered)
         
-        # Detect dead channels
-        bad_channel_ids, all_channels = si.detect_bad_channels(rec_filtered, seed=42)
+        # Detect dead channels and channels outside of the brain first on the raw data
+        print('Detecting and removing dead and out-of-the-brain channels.. ')
+        bad_channel_ids, all_channels = si.detect_bad_channels(rec_shifted, seed=42)
         prec_dead_ch = np.sum(all_channels == 'dead') / all_channels.shape[0]
         print(f'{np.sum(all_channels == "dead")} ({prec_dead_ch*100:.0f}%) dead channels')
-        dead_channel_ids = rec_filtered.get_channel_ids()[all_channels == 'dead']
+        dead_channel_ids = rec_comref.get_channel_ids()[all_channels == 'dead']
         prec_out_ch = np.sum(all_channels == 'out') / all_channels.shape[0]
         print(f'{np.sum(all_channels == "out")} ({prec_out_ch*100:.0f}%) channels outside of the brain')
-        out_channel_ids = rec_filtered.get_channel_ids()[all_channels == 'out']
+        out_channel_ids = rec_comref.get_channel_ids()[all_channels == 'out']
         
-        # Detect noisy channels
-        bad_channel_ids, all_channels = si.detect_bad_channels(rec_comref, method='mad',
-                                                               std_mad_threshold=3, seed=42)
+        # Remove dead channels
+        rec_no_dead = rec_shifted.remove_channels(remove_channel_ids=np.concatenate((
+            out_channel_ids, dead_channel_ids)))
+        
+        # Now do a common reference and detect noisy channels
+        print('Detecting and interpolating over noisy channels.. ')
+        rec_comref = si.common_reference(rec_shifted)
+        bad_channel_ids, all_channels = si.detect_bad_channels(rec_comref, seed=42)
         prec_noise_ch = np.sum(all_channels == 'noise') / all_channels.shape[0]
         print(f'{np.sum(all_channels == "noise")} ({prec_noise_ch*100:.0f}%) noise channels')
         noisy_channel_ids = rec_comref.get_channel_ids()[all_channels == 'noise']
-        
-        # Remove channels that are outside of the brain
-        rec_no_out = rec_shifted.remove_channels(remove_channel_ids=out_channel_ids)
-        
-        # Interpolate over bad channels          
-        rec_interpolated = si.interpolate_bad_channels(rec_no_out, np.concatenate((
-            dead_channel_ids, noisy_channel_ids)))
+                
+        # Interpolate over noisy channels          
+        rec_interpolated = si.interpolate_bad_channels(rec_no_dead, noisy_channel_ids)
         
         # Perform spatial filtering
         if np.unique(rec_interpolated.get_property('group')).shape[0] == 1:
@@ -330,7 +328,8 @@ class Pipeline:
             if self.settings['SINGLE_SHANK'] == 'car_global':
                 rec_processed = si.common_reference(rec_interpolated)
             elif self.settings['SINGLE_SHANK'] == 'car_local':
-                rec_processed = si.common_reference(rec_interpolated, reference='local')
+                rec_processed = si.common_reference(rec_interpolated, reference='local',
+                                                    local_radius=self.settings['LOCAL_RADIUS'])
             elif self.settings['SINGLE_SHANK'] == 'destripe':
                 rec_processed = si.highpass_spatial_filter(rec_interpolated)
         else:
@@ -338,11 +337,14 @@ class Pipeline:
             if self.settings['MULTI_SHANK'] == 'car_global':
                 rec_processed = si.common_reference(rec_interpolated)
             elif self.settings['MULTI_SHANK'] == 'car_local':
-                rec_processed = si.common_reference(rec_interpolated, reference='local')
+                rec_processed = si.common_reference(rec_interpolated, reference='local',
+                                                    local_radius=self.settings['LOCAL_RADIUS'])
             elif self.settings['MULTI_SHANK'] == 'destripe':
-                rec_processed = si.highpass_spatial_filter(rec_interpolated)
-        
-        
+                print('Performing destriping per shank')
+                rec_split = rec_interpolated.split_by(property='group')
+                rec_processed_split = si.highpass_spatial_filter(rec_split)
+                rec_processed = si.aggregate_channels(rec_processed_split)
+                
         # Calculate power spectral density
         data_chunk = si.get_random_data_chunks(rec_processed, num_chunks_per_segment=1,
                                                chunk_size=30000, seed=42)
@@ -554,6 +556,8 @@ class Pipeline:
         None.
 
         """
+        
+        import bombcell as bc
         
         # Get kilosort good indication 
         ks_metric = pd.read_csv(join(self.sorter_path / 'sorter_output', 'cluster_KSLabel.tsv'),
