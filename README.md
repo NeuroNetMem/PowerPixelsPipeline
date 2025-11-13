@@ -22,16 +22,19 @@ This pipeline is all about combining existing modules and pipelines into one, wh
 ![pipeline process](https://github.com/user-attachments/assets/1a6b70e7-6f5f-4c3f-83d8-1de4c1d5ccce)
 
 The pipeline contains the following elements:
-- **High-frequency noise**: high-frequency noise in specific frequency bands is automatically filtered out using notch filters targeted to detected peaks in the power spectrum. 
 - **Phase shift correction**: channels on a Neuropixel probe are not recorded simultaneously, there is a small delay in the order of microseconds between the acquisition of a block of channels. Correcting for this small delay greatly improves artifact removal.
 - **Remove bad channels**: bad channels are detected by looking at both coherence with other channels and PSD power in the high-frequency range, then they are interpolated using neighboring channels. Channels outside of the brain are removed.
-- **Artifact removal**: the user can decide whether to apply common average referencing, local average referencing, or destriping to remove electrical artifacts and noise.
+- **Artifact removal**: the user can decide whether to apply common average referencing, local average referencing (default), or destriping to remove electrical artifacts and noise.
+- **High-frequency noise**: high-frequency noise in specific frequency bands is automatically filtered out using notch filters targeted to detected peaks in the power spectrum. 
 - **Spike sorting**: a spike sorting algorithm is used to detect spikes and sort them into units. SpikeInterface supports many [spike sorters](https://spikeinterface.readthedocs.io/en/latest/modules/sorters.html#supported-spike-sorters) out of the box (recommended: Kilosort).
 - **Automatic classification of single neurons**: The pipeline runs three algorithms for automatic classification of good single units: Bombcell, UnitRefine and the IBL quality criteria.
 - **Synchronization**: each Neuropixel probe and the BNC breakout box has their own clock. This means one has to synchronize the spike times between the probes (if you use more than one) and the synchronization channels which carry timestamps of events (for example: behavioral events or pulses from a camera).
 - **Compression**: the raw binary file is compressed using *zarr* or *mtscomp* compression which results in a 2-3x reduction in file size.
 - **Histological tracing**: the fluorescent tracks of the probes are traced using AP_histology or Universal Probe Finder.
 - **Ephys-histology alignment**: the brain regions along the probe, inferred from the tracing, are aligned to electrophysiological features.
+
+### Preprocessing steps before spike sorting
+<img width="1625" height="1073" alt="image" src="https://github.com/user-attachments/assets/6f8477aa-c747-4ed8-b93b-a7b142c8aea5" />
 
 ## Installation
 
@@ -83,7 +86,7 @@ After installing all the necessary components you can set up your pipeline for u
 - DATA_FOLDER: path to the top level folder where your data lives.
 - SINGLE_SHANK: artifact removal method used for single shank probes. Options: "car_global"; global median reference, "car_local"; local median reference, "destripe"; spatial filtering.
 - MULTI_SHANK: artifact removal method for probes with multiple shanks.
-- LOCAL_RADIUS: *only for car_local* the radius in um around each channel to select channels to subtract from it.
+- LOCAL_RADIUS: *only for car_local* annulus in um around each channel to select channels to subtract from it (inner diameter, outer diameter).
 - PEAK_THRESHOLD: the threshold for peak detection in the power spectrum which will be filtered out to reduce high-frequency noise.
 - USE_NIDAQ: whether you use a BNC-breakout box with synchronization channels.
 - USE_DOCKER: whether to run the spike sorting in a Docker container.
@@ -139,6 +142,7 @@ The data that comes out of the Power Pixels pipeline is (1) raw spike sorter out
 That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
+
 
 
 
