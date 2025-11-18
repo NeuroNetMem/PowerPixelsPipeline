@@ -34,7 +34,7 @@ The pipeline contains the following elements:
 - **Ephys-histology alignment**: the brain regions along the probe, inferred from the tracing, are aligned to electrophysiological features.
 
 ### Preprocessing steps before spike sorting
-<img width="1625" height="1073" alt="image" src="https://github.com/user-attachments/assets/6f8477aa-c747-4ed8-b93b-a7b142c8aea5" />
+<img width="2299" height="1520" alt="image" src="https://github.com/user-attachments/assets/d429d7bb-94a2-4164-b714-3196f2c6798e" />
 
 ## Installation
 
@@ -142,6 +142,7 @@ The data that comes out of the Power Pixels pipeline is (1) raw spike sorter out
 That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
+
 
 
 
