@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Written by Guido Meijer
+Developed by Guido Meijer (www.guidomeijer.com)
 
 """
 
@@ -15,13 +15,13 @@ import shutil
 from glob import glob
 import json
 from scipy.signal import welch, find_peaks
-from .utils import load_neural_data
 import spikeinterface.full as si
 import mtscomp
 from brainbox.metrics.single_units import spike_sorting_metrics
 from brainbox.metrics.single_units import METRICS_PARAMS as ibl_qc_default_params
 from ibllib.ephys.spikes import sync_spike_sorting
 from ibllib.pipes.ephys_tasks import EphysSyncPulses, EphysSyncRegisterRaw, EphysPulses
+from .utils import load_neural_data
 
 
 class Pipeline:
@@ -585,12 +585,12 @@ class Pipeline:
        
         # Load in recording
         sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
-                 
-        # Apply the sua/mua model
+        
+        # Run the noise/no noise model
         ml_labels = si.auto_label_units(
             sorting_analyzer = sorting_analyzer,
-            repo_id = 'AnoushkaJain3/sua_mua_classifier_lightweight',
-            trust_model=True,
+            repo_id = 'SpikeInterface/UnitRefine_sua_mua_classifier_lightweight',
+            trusted = ['numpy.dtype']
         )
         print('Done')
                 
@@ -623,7 +623,7 @@ class Pipeline:
         qc_metrics.insert(0, 'Kilosort', qc_metrics.pop('Kilosort'))
         qc_metrics['IBL'] = df_units['label']
         qc_metrics.insert(0, 'IBL', qc_metrics.pop('IBL'))
-        qc_metrics['UnitRefine'] = (ml_labels['prediction'] == 'sua').astype(int)
+        qc_metrics['UnitRefine'] = ml_labels['prediction'] == 'sua'
         qc_metrics.insert(0, 'UnitRefine', qc_metrics.pop('UnitRefine'))
         qc_metrics['Bombcell'] = unit_type.astype(int)
         qc_metrics.insert(0, 'Bombcell', qc_metrics.pop('Bombcell'))
