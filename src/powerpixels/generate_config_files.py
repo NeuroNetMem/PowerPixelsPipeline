@@ -51,6 +51,7 @@ def main():
     settings_file = project_root / 'config' / 'settings.json'
     bombcell_file = project_root / 'config' / 'bombcell_params.json'
     ibl_qc_file = project_root / 'config' / 'ibl_qc_params.json'
+    unitrefine_file = project_root / 'config' / 'unitrefine_params.json'
     wiring_dir = project_root / 'config' /'wiring'
     sorting_dir = project_root / 'config' / 'sorter_params'
     
@@ -131,6 +132,20 @@ def main():
         with open(ibl_qc_file, 'w') as outfile:
             outfile.write(json.dumps(ibl_dict, indent=4))
         print(f'\nDefault IBL QC param file generated at {ibl_qc_file}')
+        
+    # UnitRefine params
+    if unitrefine_file.is_file():
+        print(f'\nUnitRefine file already exists at {unitrefine_file}')
+    else:
+        
+        # Generate example settings JSON file
+        unitrefine_dict = {
+            "noise_classification": False,
+            "sua_classifier": "AnoushkaJain3/sua_mua_classifier_lightweight"
+        }
+        with open(unitrefine_file, 'w') as outfile:
+            outfile.write(json.dumps(unitrefine_dict, indent=4))
+        print(f'\nDefault UnitRefine param file generated at {unitrefine_file}')
             
     # Wiring files
     if wiring_dir.is_dir():

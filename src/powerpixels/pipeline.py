@@ -33,6 +33,7 @@ class Pipeline:
         settings_file = config_dir / 'settings.json'
         bombcell_file = config_dir / 'bombcell_params.json'
         ibl_qc_file = config_dir / 'ibl_qc_params.json'
+        unitrefine_file = config_dir / 'unitrefine_params.json'
 
         # Check if the config file exists
         if not settings_file.is_file():
@@ -57,8 +58,9 @@ class Pipeline:
             self.bombcell_params = json.load(openfile)
         with open(ibl_qc_file, 'r') as openfile:
             self.ibl_qc_params = json.load(openfile)
-            
-        
+        with open(unitrefine_file, 'r') as openfile:
+            self.unitrefine_params = json.load(openfile)
+                    
         # Check spike sorter
         if self.settings['SPIKE_SORTER'][:8] != 'kilosort':
             print('\n --- WARNING: use Kilosort (any version) for full functionality of the pipeline --- \n')
@@ -288,7 +290,7 @@ class Pipeline:
                     
         # Apply high-pass filter
         print('\nApplying high-pass filter.. ')
-        rec_filtered = si.highpass_filter(rec, ftype='bessel', dtype='float32')
+        rec_filtered = si.highpass_filter(rec, dtype='float32')
                     
         # Correct for inter-sample phase shift
         print('Correcting for phase shift.. ')
@@ -586,12 +588,36 @@ class Pipeline:
         # Load in recording
         sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
         
-        # Run the noise/no noise model
-        ml_labels = si.auto_label_units(
-            sorting_analyzer = sorting_analyzer,
-            repo_id = 'SpikeInterface/UnitRefine_sua_mua_classifier_lightweight',
-            trusted = ['numpy.dtype']
-        )
+        # Run UnitRefine
+        if self.unitrefine_params['noise_classification']:
+            
+            # Apply the noise/not-noise model
+            noise_neuron_labels = si.auto_label_units(
+                sorting_analyzer=sorting_analyzer,
+                repo_id="SpikeInterface/UnitRefine_noise_neural_classifier_lightweight",
+                trust_model=True,
+            )
+            
+            noise_units = noise_neuron_labels[noise_neuron_labels['prediction']=='noise']
+            analyzer_neural = sorting_analyzer.remove_units(noise_units.index)
+            
+            # Apply the sua/mua model
+            sua_mua_labels = si.auto_label_units(
+                sorting_analyzer=analyzer_neural,
+                repo_id=self.unitrefine_params['sua_classifier'],
+                trust_model=True,
+            )
+            ml_labels = pd.concat([sua_mua_labels, noise_units]).sort_index()
+            
+        else:
+            
+            # Only apply the SUA model on all units
+            ml_labels = si.auto_label_units(
+                sorting_analyzer = sorting_analyzer,
+                repo_id = self.unitrefine_params['sua_classifier'],
+                trust_model = True
+            )
+        ml_labels_int = ml_labels['prediction'].map({'noise': 0, 'sua': 1, 'mua': 2}).values
         print('Done')
                 
         # Calculate IBL neuron level QC
@@ -623,7 +649,7 @@ class Pipeline:
         qc_metrics.insert(0, 'Kilosort', qc_metrics.pop('Kilosort'))
         qc_metrics['IBL'] = df_units['label']
         qc_metrics.insert(0, 'IBL', qc_metrics.pop('IBL'))
-        qc_metrics['UnitRefine'] = ml_labels['prediction'] == 'sua'
+        qc_metrics['UnitRefine'] = ml_labels_int
         qc_metrics.insert(0, 'UnitRefine', qc_metrics.pop('UnitRefine'))
         qc_metrics['Bombcell'] = unit_type.astype(int)
         qc_metrics.insert(0, 'Bombcell', qc_metrics.pop('Bombcell'))
