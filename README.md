@@ -3,7 +3,7 @@
 <img src="https://github.com/user-attachments/assets/37d9003a-788a-43d2-a5a6-ff4d7a29f780" alt="PowerPixels logo" width="30%" align="right" vspace="20"/>
 
 
-📄 Please cite the [Peer Community in Neuroscience paper](https://doi.org/10.1101/2025.06.27.661890) if you use the pipeline 📄 ⭐ And star this repository! ⭐
+📄 Please cite the [Peer Community Journal](https://peercommunityjournal.org/articles/10.24072/pcjournal.679/) if you use the pipeline 📄 ⭐ And star this repository! ⭐
 
 The Power Pixels pipeline combines several packages and workflows into one end-to-end pipeline. It supports Neuropixel 1.0 and 2.0 probes recorded on a National Instruments system using SpikeGLX or OpenEphys. 
 
@@ -142,6 +142,7 @@ The data that comes out of the Power Pixels pipeline is (1) raw spike sorter out
 That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
+
 
 
 
