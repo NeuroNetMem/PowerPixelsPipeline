@@ -42,10 +42,10 @@ It is recommended to install Power Pixels in an Anaconda or Miniforge environmen
 1. Install [Anaconda](https://www.anaconda.com/) or [Miniforge](https://github.com/conda-forge/miniforge) - Miniforge is the recommended option
 2. Open the Anaconda or Miniforge prompt
 3. Create a new environment by typing `conda create -n powerpixels python=3.10 git` (use `mamba` instead of `conda` when using Miniforge)
-4. Navigate to the location on your computer you want the repository to be and clone the repository by typing `git clone https://github.com/NeuroNetMem/PowerPixelsPipeline`
-5. Navigating to the repository directory you just cloned in your console (`cd PowerPixelPipeline`) and install PowerPixels with the command `pip install -e .`
-6. You can now activate the environment by typing `conda activate powerpixels` (or `mamba`)
-7. Install `iblapps` by cloning the repository `git clone https://github.com/int-brain-lab/iblapps` and installing it with the command `pip install -e iblapps`
+4. Activate the newly created environment by typing `conda activate powerpixels` (or `mamba`) 
+5. Navigate to the location on your computer you want the repository to be and clone the repository by typing `git clone https://github.com/NeuroNetMem/PowerPixelsPipeline`
+6. Navigating to the repository directory you just cloned in your console (`cd PowerPixelPipeline`) and install PowerPixels with the command `pip install -e .`
+8. Install `iblapps` by cloning the repository `git clone https://github.com/int-brain-lab/iblapps` and installing it with the command `pip install -e iblapps`
 
 ### Spike sorting
 To install a spike sorter there are two options: (1) directly install Kilosort4 in the python environment, or (2) use Docker to run the spike sorter in a container. Note: if you want to use a MATLAB-based spike sorter (like Kilosort 2.5) you will have to pick option 2. 
@@ -142,6 +142,7 @@ The data that comes out of the Power Pixels pipeline is (1) raw spike sorter out
 That's it, enjoy your beautiful data!
 
 *If you like this pipeline, you can star this repository and/or give me a shoutout on Bluesky ([@guidomeijer.bsky.social](https://bsky.app/profile/guidomeijer.bsky.social)) or X ([@guido_meijer](https://x.com/guido_meijer)).*
+
 
 
 
