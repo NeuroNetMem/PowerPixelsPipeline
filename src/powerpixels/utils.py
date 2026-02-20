@@ -97,13 +97,12 @@ def load_neural_data(session_path, probe, histology=False, keep_units='all'):
     spikes['times'] = np.load(session_path / probe / 'spikes.times.npy')
     spikes['clusters'] = np.load(session_path / probe / 'spikes.clusters.npy')
     spikes['amps'] = np.load(session_path /probe / 'spikes.amps.npy')
+    spikes['amps'] = np.clip(spikes['amps'], 1e-5, None)  # remove negative spike amplitudes
     spikes['depths'] = np.load(session_path / probe / 'spikes.depths.npy')
     
     # Load in cluster data
     clusters = dict()
     clusters['channels'] = np.load(session_path / probe / 'clusters.channels.npy')
-    clusters['depths'] = np.load(session_path / probe / 'clusters.depths.npy')
-    clusters['amps'] = np.load(session_path / probe / 'clusters.amps.npy')
     clusters['cluster_id'] = np.arange(clusters['channels'].shape[0])
     
     # Add cluster qc metrics
@@ -189,8 +188,6 @@ def load_neural_data(session_path, probe, histology=False, keep_units='all'):
     spikes['amps'] = spikes['amps'][np.isin(spikes['clusters'], good_units)]
     spikes['depths'] = spikes['depths'][np.isin(spikes['clusters'], good_units)]
     spikes['clusters'] = spikes['clusters'][np.isin(spikes['clusters'], good_units)]
-    clusters['depths'] = clusters['depths'][good_units]
-    clusters['amps'] = clusters['amps'][good_units]
     clusters['cluster_id'] = clusters['cluster_id'][good_units]
     if histology:
         clusters['acronym'] = clusters['acronym'][good_units]
