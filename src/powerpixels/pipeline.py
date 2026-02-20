@@ -315,11 +315,11 @@ class Pipeline:
         
         # Now do a common reference and detect noisy channels
         print('Detecting and interpolating over noisy channels.. ')
-        rec_comref = si.common_reference(rec_shifted)
-        bad_channel_ids, all_channels = si.detect_bad_channels(rec_comref, seed=42)
+        rec_comref = si.common_reference(rec_no_dead)
+        bad_channel_ids, all_channels = si.detect_bad_channels(rec_no_dead, seed=42)
         prec_noise_ch = np.sum(all_channels == 'noise') / all_channels.shape[0]
         print(f'{np.sum(all_channels == "noise")} ({prec_noise_ch*100:.0f}%) noise channels')
-        noisy_channel_ids = rec_comref.get_channel_ids()[all_channels == 'noise']
+        noisy_channel_ids = rec_no_dead.get_channel_ids()[all_channels == 'noise']
                 
         # Interpolate over noisy channels          
         rec_interpolated = si.interpolate_bad_channels(rec_no_dead, noisy_channel_ids)
