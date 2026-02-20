@@ -19,7 +19,7 @@ import spikeinterface.full as si
 import mtscomp
 from brainbox.metrics.single_units import spike_sorting_metrics
 from brainbox.metrics.single_units import METRICS_PARAMS as ibl_qc_default_params
-from ibllib.ephys.spikes import sync_spike_sorting
+from ibllib.ephys.spikes import sync_spike_sorting, ks2_to_alf
 from ibllib.pipes.ephys_tasks import EphysSyncPulses, EphysSyncRegisterRaw, EphysPulses
 from .utils import load_neural_data
 
@@ -506,10 +506,15 @@ class Pipeline:
         # Export data to temporary folder
         si.export_to_ibl_gui(
             sorting_analyzer=sorting_analyzer,
-            output_folder=self.results_path / 'exported_data',
+            output_folder=self.results_path  / 'exported_data',
             lfp_recording=rec_lfp,
             n_jobs=-1
         )
+
+        # Calculate and save spike samples
+        spike_times = np.load(self.results_path / 'exported_data' / 'spikes.times.npy')
+        spike_samples = np.round(spike_times * rec.get_sampling_frequency()).astype(np.uint64)
+        np.save(self.results_path / 'exported_data' / 'spikes.samples.npy', spike_samples)
         
         # Copy the extracted data to the parent folder
         for file_path in (self.results_path / 'exported_data').iterdir():
