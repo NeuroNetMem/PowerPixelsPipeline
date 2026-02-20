@@ -475,6 +475,7 @@ class Pipeline:
             'templates',
             'template_similarity',
             'unit_locations',
+            'spike_locations',
             'spike_amplitudes',
             ])
                 
