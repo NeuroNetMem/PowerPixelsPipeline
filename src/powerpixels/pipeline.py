@@ -359,7 +359,9 @@ class Pipeline:
         # Detect peaks
         peak_inds, peak_props = find_peaks(mean_power, threshold=self.settings['PEAK_THRESHOLD'])
         peak_freqs = f[peak_inds]
-        peak_freqs = peak_freqs[peak_freqs > 2000]  # only select high frequency peaks
+        keep_peaks = peak_freqs > 2000 # only select high frequency peaks
+        peak_inds = peak_inds[keep_peaks]
+        peak_freqs = peak_freqs[keep_peaks]
         print(f'Detected {peak_inds.shape[0]} peaks in the power spectrum')
         
         # Plot
