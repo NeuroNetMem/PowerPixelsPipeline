@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 pp.automatic_curation()
                 
                 # Synchronize spike sorting to the nidq clock
-                if pp.settings['BNC_BREAKOUT_BOX']:
+                if pp.settings['USE_NIDAQ']:
                     pp.probe_synchronization()
                 
                 # Compress raw data 
