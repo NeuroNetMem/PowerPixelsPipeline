@@ -131,7 +131,9 @@ class Pipeline:
         if self.data_format == 'spikeglx':
             # Set path to nidq file
             if len(list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))) == 1:
-                self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]        
+                self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]
+            else:
+                print(f'WARNING! .nidq.bin file not found in {self.session_path / "raw_ephys_data"}')
     
             # Create synchronization file
             with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
