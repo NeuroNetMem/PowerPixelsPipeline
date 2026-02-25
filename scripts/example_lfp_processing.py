@@ -5,6 +5,8 @@ Created on Wed Feb 25 10:40:54 2026
 By Guido Meijer
 """
 
+import scipy
+import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 import spikeinterface.full as si
@@ -12,12 +14,17 @@ from spikeinterface.sortingcomponents.motion import estimate_motion, interpolate
 
 
 # Settings
-PROBE_PATH = Path(r'path\to\raw_ephys_data\probe00')
+PROBE_PATH = Path(r'V:\imaging1\guido\Subjects\478154\20251008\raw_ephys_data\probe01')
 N_CPUS = -1
 si.set_global_job_kwargs(n_jobs=N_CPUS, progress_bar=True)
 
 # Load in raw broadband data
 rec_raw = si.read_spikeglx(PROBE_PATH, stream_id=si.get_neo_streams('spikeglx', PROBE_PATH)[0][0])
+
+# Load in sync data
+sync_file = list(PROBE_PATH.rglob('*sync.npy'))
+sync = np.load(sync_file[0])
+sample2time = scipy.interpolate.interp1d(sync[:, 0] * rec_raw.get_sampling_frequency(), sync[:, 1])
 
 # %% Do CAR and save to disk
 
@@ -33,7 +40,13 @@ rec_car = si.common_reference(rec_shifted)
 # Downsample to 2500 Hz
 rec_down = si.resample(rec_car, 2500)
 
+# Get timestamps
+indices_orig = (np.arange(rec_down.get_num_samples())
+                * (rec_raw.get_sampling_frequency() / rec_down.get_sampling_frequency()))
+timestamps = sample2time(indices_orig)
+
 # Save to disk
+np.save(PROBE_PATH / 'lfp_timestamps.npy', timestamps)
 rec_down.save(folder=PROBE_PATH / 'lfp_car', format='binary', chunk_duration='1s',
               dtype='int16', n_jobs=N_CPUS)
 
