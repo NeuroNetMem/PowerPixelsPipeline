@@ -29,7 +29,7 @@ if __name__ == "__main__":
             # Detect data format
             pp.detect_data_format()
             if pp.data_format == 'openephys':
-                print('WARNING: You are running the SpikeGLX pipeline on an OpenEphys recording!')
+                print('\nWARNING: You are running the SpikeGLX pipeline on an OpenEphys recording!\n')
                 continue
             
             # Restructure file and folders
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                     pp.probe_synchronization()
                 
                 # Compress raw data 
-                pp.compress_raw_data()            
+                pp.compress_raw_data()
                             
                 probe_done[i] = True
                 print(f'Done! At {datetime.now().strftime("%H:%M")}')

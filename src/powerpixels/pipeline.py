@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 from os.path import join, isfile, isdir
+import gc
 from pathlib import Path
 import shutil
 from glob import glob
@@ -19,7 +20,7 @@ import spikeinterface.full as si
 import mtscomp
 from brainbox.metrics.single_units import spike_sorting_metrics
 from brainbox.metrics.single_units import METRICS_PARAMS as ibl_qc_default_params
-from ibllib.ephys.spikes import sync_spike_sorting, ks2_to_alf
+from ibllib.ephys.spikes import sync_spike_sorting
 from ibllib.pipes.ephys_tasks import EphysSyncPulses, EphysSyncRegisterRaw, EphysPulses
 from .utils import load_neural_data
 
@@ -727,7 +728,13 @@ class Pipeline:
                         self.ap_file.parent / 'continuous.zarr')
             
             # Delete original .dat file
-            os.remove(self.ap_file)
+            del rec
+            gc.collect()
+            try:
+                os.remove(self.ap_file)
+            except Exception as err:
+                print(err)
+                print('\nWARNING: could not delete original raw data file, delete manually!\n')
             
             # Update reference to ap file
             self.ap_file = self.ap_file.parent / (str(self.ap_file.stem) + '.zarr')
@@ -739,8 +746,8 @@ class Pipeline:
                 return
             
             # Compress
-            mtscomp.compress(self.ap_file, str(self.ap_file)[:-3] + 'cbin',
-                             str(self.ap_file)[:-3] + 'ch',
+            mtscomp.compress(self.ap_file, str(self.ap_file.with_suffix('.cbin')),
+                             str(self.ap_file.with_suffix('.ch')),
                              sample_rate=rec.get_sampling_frequency(),
                              n_channels=rec.get_num_channels() + 1,
                              dtype=rec.get_dtype())
