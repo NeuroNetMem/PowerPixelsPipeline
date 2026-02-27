@@ -122,8 +122,7 @@ class Pipeline:
         This also prepares for the synchronization of the spike times to the NIDAQ clock later on
         
         """
-        
-        
+
         # Detect data format if necessary
         if not hasattr(self, 'data_format'):
             self.detect_data_format()
@@ -135,7 +134,7 @@ class Pipeline:
                 self.nidq_file = list((self.session_path / 'raw_ephys_data').glob('*.nidq.*bin'))[0]
             else:
                 print(f'WARNING! .nidq.bin file not found in {self.session_path / "raw_ephys_data"}')
-    
+
             # Create synchronization file
             with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
                 json.dump(self.nidq_sync, fp, indent=1)
@@ -154,6 +153,25 @@ class Pipeline:
                                    location='local')
             task.run()
 
+            # Decompress nidq cbin again
+            ch_path = list((self.session_path / 'raw_ephys_data').glob('*ch'))[0]
+            r = mtscomp.Reader(chunk_duration=1.)
+            r.open(self.nidq_file.with_suffix('.cbin'), ch_path)
+            r.tofile(self.nidq_file.with_suffix('.bin'))
+            r.close()
+            os.remove(self.nidq_file.with_suffix('.cbin'))
+            self.nidq_file = self.nidq_file.with_suffix('.bin')
+
+            # Extract analog sync data
+            for ii, ch_name in enumerate(self.nidq_sync['SYNC_WIRING_ANALOG'].keys()):
+                nidq_data = si.read_spikeglx(self.session_path, stream_id='nidq')
+                analog_trace = np.squeeze(nidq_data.get_traces(channel_ids=[f'nidq#XA{ch_name[-1]}']))
+                timestamps = nidq_data.get_times()
+                np.save(self.session_path / ('analog.' + self.nidq_sync['SYNC_WIRING_ANALOG'][ch_name] + '.npy'),
+                        analog_trace)
+                if ii == 0:
+                    np.save(self.session_path / 'analog.timestamps.npy', timestamps)
+
             # Extract digital sync timestamps
             sync_times = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
             sync_polarities = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
@@ -164,6 +182,7 @@ class Pipeline:
                 nidq_pulses = sync_times[(sync_channels == int(ch_name[-1])) & (sync_polarities == 1)]
                 np.save(join(self.session_path, self.nidq_sync['SYNC_WIRING_DIGITAL'][ch_name] + '.times.npy'),
                         nidq_pulses)
+
                 
         elif self.data_format == 'openephys':
             # TO DO
@@ -699,12 +718,12 @@ class Pipeline:
         # Create probe sync file
         task = EphysPulses(session_path=self.session_path, pname=self.this_probe,
                            sync_collection='raw_ephys_data',
-                           device_collection='raw_ephys_data')
+                           device_collection='raw_ephys_data',
+                           location='local')
         task.run()
         
         # Synchronize spike sorting to nidq clock
         sync_spike_sorting(self.ap_file, self.results_path)
-        
 
         return
         
