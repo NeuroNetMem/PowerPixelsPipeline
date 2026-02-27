@@ -140,16 +140,20 @@ class Pipeline:
             with open(self.nidq_file.with_suffix('.wiring.json'), 'w') as fp:
                 json.dump(self.nidq_sync, fp, indent=1)
             
-            # Create nidq sync file        
-            EphysSyncRegisterRaw(session_path=self.session_path, sync_collection='raw_ephys_data').run()            
-        
+            # Create nidq sync file
+            task = EphysSyncRegisterRaw(session_path=self.session_path,
+                                        sync_collection='raw_ephys_data',
+                                        location='local')
+            task.run()
+
             # Extract sync pulses    
             task = EphysSyncPulses(session_path=self.session_path, sync='nidq',
                                    sync_ext='bin', sync_namespace='spikeglx',
                                    sync_collection='raw_ephys_data',
-                                   device_collection='raw_ephys_data')
+                                   device_collection='raw_ephys_data',
+                                   location='local')
             task.run()
-        
+
             # Extract digital sync timestamps
             sync_times = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.times.npy'))
             sync_polarities = np.load(join(self.session_path, 'raw_ephys_data', '_spikeglx_sync.polarities.npy'))
