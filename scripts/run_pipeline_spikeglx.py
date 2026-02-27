@@ -82,8 +82,9 @@ if __name__ == "__main__":
                 if pp.settings['USE_NIDAQ']:
                     pp.probe_synchronization()
                 
-                # Compress raw data 
-                pp.compress_raw_data()
+                # Compress raw data
+                if pp.settings['COMPRESS_RAW_DATA']:
+                    pp.compress_raw_data()
                             
                 probe_done[i] = True
                 print(f'Done! At {datetime.now().strftime("%H:%M")}')
