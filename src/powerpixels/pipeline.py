@@ -94,26 +94,63 @@ class Pipeline:
 
     def restructure_files(self):
         """
-        Restructure the raw data files
-    
+        Restructure the raw data files with improved robustness.
         """
-        
-        # Detect data format if necessary
         if not hasattr(self, 'data_format'):
             self.detect_data_format()
-        
-        # Restructure SpikeGLX recording folder structure
-        if ((self.data_format == 'spikeglx')
-            and len([i for i in os.listdir(self.session_path / 'raw_ephys_data') if i[:5] == 'probe']) == 0):
-            orig_dir = os.listdir(self.session_path / 'raw_ephys_data')[0]
-            for i, this_dir in enumerate(os.listdir(self.session_path / 'raw_ephys_data' / orig_dir)):
-                shutil.move(self.session_path / 'raw_ephys_data' / orig_dir / this_dir,
-                            self.session_path / 'raw_ephys_data')
-            os.rmdir(self.session_path / 'raw_ephys_data' / orig_dir)
-            for i, this_path in enumerate((self.session_path / 'raw_ephys_data').glob('*imec*')):
-                this_path.rename(self.session_path / 'raw_ephys_data' / ('probe0' + str(this_path)[-1]))
-                
-        return
+
+        if self.data_format != 'spikeglx':
+            return
+
+        raw_dir = self.session_path / 'raw_ephys_data'
+
+        # Early exit if probes are already structured
+        if list(raw_dir.rglob('probe*')):
+            return
+
+        # Get only directory children
+        dirs = [x for x in raw_dir.iterdir() if x.is_dir()]
+        if not dirs:
+            return
+
+        # Case 1: SpikeGLX default nested structure (session/g0/...)
+        # Check if the folder has a _g but no imec
+        if (len(dirs) == 1) and (('_g' in dirs[0].name) and ('imec' not in dirs[0].name)):
+            g_dir = dirs[0]
+            for item in g_dir.iterdir():
+                dest = raw_dir / item.name
+                if not dest.exists():
+                    shutil.move(str(item), str(dest))
+
+            # Cleanup empty g-folder
+            if not any(g_dir.iterdir()):
+                g_dir.rmdir()
+
+            # Refresh dir list for the imec renaming step
+            dirs = [x for x in raw_dir.iterdir() if x.is_dir()]
+
+        # Case 2: Multi-run check
+        if (len([d for d in dirs if '_g' in d.name]) > 1) and ('imec' not in dirs[0].name):
+            print(f"ERROR: Multiple runs detected in {raw_dir}. Manual intervention required.")
+            return
+
+        # Case 3: Standardize imec folder names to probeXX
+        for imec_dir in raw_dir.glob('*imec*'):
+            # Extract the number after 'imec' properly
+            # e.g., 'my_run_g0_imec0' -> '0'
+            try:
+                probe_idx = imec_dir.name.split('imec')[-1]
+                new_name = raw_dir / f"probe{probe_idx.zfill(2)}"  # e.g., probe00
+
+                if imec_dir == new_name:
+                    continue
+
+                if not new_name.exists():
+                    imec_dir.rename(new_name)
+                else:
+                    print(f"WARNING: Cannot rename {imec_dir.name}, {new_name.name} already exists.")
+            except (IndexError, ValueError):
+                print(f"WARNING: Could not parse probe index from {imec_dir.name}")
 
         
     def extract_sync_pulses(self):

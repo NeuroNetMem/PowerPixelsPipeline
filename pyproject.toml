@@ -9,7 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
      "spikeinterface[full,widgets]==0.103.2",
      "docker",
-     "ibllib==3.4.1",
+     "ibllib==3.4.3",
      "ipympl",
      "jupyter",
      "spikeinterface-gui==0.11.0",
