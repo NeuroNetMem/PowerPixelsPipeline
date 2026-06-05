@@ -53,7 +53,7 @@ To install a spike sorter there are two options: (1) directly install Kilosort4 
 _Option 1: local installation of Kilosort4_
 
 Kilosort4 is already installed with PowerPixels, what you'll have to do now is make sure it uses the GPU.
-1. In a terminal window activate the `spikeinterface` environment
+1. In a terminal window activate the `powerpixels` environment
 2. Remove the CPU version of PyTorch by typing `pip uninstall torch`
 3. Install the GPU version of PyTorch (for CUDA 11.8) with `pip3 install torch --index-url https://download.pytorch.org/whl/cu118`.
 4. Check whether the GPU is used by opening a python terminal with the command `ipython` and typing `import torch; torch.cuda.is_available()`. If the result is True you are good to go. If it's False you need to make sure PyTorch can use CUDA, good luck! (ask AI to help you out)  
