@@ -479,11 +479,19 @@ class Pipeline:
             
         """
         
+        # Save lazy pipeline to a cached binary on disk        
+        rec_cached = rec.save(
+            folder=self.sorter_path / 'preprocessed_temp',
+            format='binary',
+            overwrite=True,
+            n_jobs=self.settings['N_CORES']
+        )
+        
         # Run spike sorting
         try:
             sort = si.run_sorter(
                 self.settings['SPIKE_SORTER'],
-                rec,
+                rec_cached,
                 folder=self.sorter_path,
                 verbose=True,
                 docker_image=self.settings['USE_DOCKER'],
@@ -571,7 +579,7 @@ class Pipeline:
             sorting_analyzer=sorting_analyzer,
             output_folder=self.results_path  / 'exported_data',
             lfp_recording=rec_lfp,
-            n_jobs=-1
+            n_jobs=self.settings['N_CORES']
         )
 
         # Calculate and save spike samples
