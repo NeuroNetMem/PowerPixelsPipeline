@@ -348,6 +348,12 @@ class Pipeline:
 
         """
         
+        # Check if preprocessing has already ran
+        if (self.session_path / 'preprocessing_temp').is_dir():
+            print('\nPreprocessed recording found on disk')
+            rec_cached = si.load_extractor(self.session_path / 'preprocessed_temp')
+            return rec_cached
+        
         # Load in raw data
         rec = self.load_raw_binary()
                     
@@ -465,7 +471,15 @@ class Pipeline:
         else:
             rec_final = rec_processed
         
-        return rec_final
+        # Save lazy pipeline to a cached binary on disk        
+        rec_cached = rec_final.save(
+            folder=self.session_path / 'preprocessed_temp',
+            format='binary',
+            overwrite=True,
+            n_jobs=self.settings['N_CORES']
+        )
+        
+        return rec_cached
     
     
     def spikesorting(self, rec):
@@ -479,19 +493,11 @@ class Pipeline:
             
         """
         
-        # Save lazy pipeline to a cached binary on disk        
-        rec_cached = rec.save(
-            folder=self.sorter_path / 'preprocessed_temp',
-            format='binary',
-            overwrite=True,
-            n_jobs=self.settings['N_CORES']
-        )
-        
         # Run spike sorting
         try:
             sort = si.run_sorter(
                 self.settings['SPIKE_SORTER'],
-                rec_cached,
+                rec,
                 folder=self.sorter_path,
                 verbose=True,
                 docker_image=self.settings['USE_DOCKER'],
@@ -504,7 +510,7 @@ class Pipeline:
             logf.write(str(err))
             logf.close()
             
-            # Delete empty sorting directory
+            # In case of an error: delete empty sorting directory 
             if self.sorter_path.is_dir():
                 shutil.rmtree(self.sorter_path)
             
@@ -827,4 +833,11 @@ class Pipeline:
             self.ap_file = self.ap_file.parent / (str(self.ap_file.stem) + '.cbin')
 
         return
+    
+    
+    def clean_up(self):
+        
+        if (self.session_path / 'preprocessed_temp').is_dir():
+            print('\nRemoving temporary preprocessed data files')
+            shutil.rmtree(self.session_path / 'preprocessed_temp')
         

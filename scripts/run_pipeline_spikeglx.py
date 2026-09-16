@@ -86,6 +86,9 @@ if __name__ == "__main__":
                 if pp.settings['COMPRESS_RAW_DATA']:
                     pp.compress_raw_data()
                             
+                # Clean up
+                pp.clean_up()
+                
                 probe_done[i] = True
                 print(f'Done! At {datetime.now().strftime("%H:%M")}')
             
