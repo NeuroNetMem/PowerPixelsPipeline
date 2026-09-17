@@ -87,6 +87,7 @@ if __name__ == "__main__":
                     pp.compress_raw_data()
                             
                 # Clean up
+                del rec
                 pp.clean_up()
                 
                 probe_done[i] = True
