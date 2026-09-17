@@ -787,6 +787,7 @@ class Pipeline:
         Compress raw data using either zarr or mtscomp compression
         
         """
+        print('\nStarting compression of raw data..')
         
         # Load in raw binary
         rec = self.load_raw_binary()
@@ -842,5 +843,10 @@ class Pipeline:
         
         if (self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp').is_dir():
             print('\nRemoving temporary preprocessed data files')
-            shutil.rmtree(self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp')
+            try:
+                shutil.rmtree(self.session_path / 'raw_ephys_data'
+                              / f'{self.this_probe}_preprocessed_temp')
+            except Exception as err:
+                print(err)
+                print(f'\nWARNING: could not delete temporary preprocessed data folder {self.this_probe}_preprocessed_temp\n')
         
