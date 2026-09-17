@@ -289,7 +289,7 @@ class Pipeline:
         elif self.ap_file.suffix == '.zarr':
             
             # Decompress zarr file
-            comp_rec = si.load_extractor(self.ap_file)
+            comp_rec = si.load(self.ap_file)
             si.write_binary_recording(
                 comp_rec, file_paths=[self.ap_file.parent / (self.ap_file.stem + '.dat')])
 
@@ -351,7 +351,7 @@ class Pipeline:
         # Check if preprocessing has already ran
         if (self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp').is_dir():
             print('\nPreprocessed recording found on disk')
-            rec_cached = si.load_extractor(
+            rec_cached = si.load(
                 self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp')
             return rec_cached
         

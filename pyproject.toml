@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "powerpixels"
-version = "0.2.0"
+version = "1.1"
 requires-python = ">=3.10"
 dependencies = [
-     "spikeinterface[full,widgets]==0.103.2",
+     "spikeinterface[full,widgets]==0.104.8",
      "docker",
      "ibllib==3.4.3",
      "ipympl",
