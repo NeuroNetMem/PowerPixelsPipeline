@@ -578,8 +578,10 @@ class Pipeline:
         # Load in sorting output
         sorting_analyzer = si.load_sorting_analyzer(self.results_path / 'sorting')
         
-        # Load in raw LFP 
-        rec_lfp = si.bandpass_filter(rec, freq_min=1, freq_max=300)
+        # Load in raw LFP
+        rec_resampled = si.resample(rec, resample_rate=2500)
+        rec_lfp = si.bandpass_filter(rec_resampled, freq_min=1, freq_max=300,
+                                     ignore_low_freq_error=True)
         
         # Export data to temporary folder
         si.export_to_ibl_gui(
