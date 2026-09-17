@@ -349,9 +349,10 @@ class Pipeline:
         """
         
         # Check if preprocessing has already ran
-        if (self.session_path / 'preprocessing_temp').is_dir():
+        if (self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp').is_dir():
             print('\nPreprocessed recording found on disk')
-            rec_cached = si.load_extractor(self.session_path / 'preprocessed_temp')
+            rec_cached = si.load_extractor(
+                self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp')
             return rec_cached
         
         # Load in raw data
@@ -473,7 +474,7 @@ class Pipeline:
         
         # Save lazy pipeline to a cached binary on disk        
         rec_cached = rec_final.save(
-            folder=self.session_path / 'preprocessed_temp',
+            folder=self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp',
             format='binary',
             overwrite=True,
             n_jobs=self.settings['N_CORES']
@@ -837,7 +838,7 @@ class Pipeline:
     
     def clean_up(self):
         
-        if (self.session_path / 'preprocessed_temp').is_dir():
+        if (self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp').is_dir():
             print('\nRemoving temporary preprocessed data files')
-            shutil.rmtree(self.session_path / 'preprocessed_temp')
+            shutil.rmtree(self.session_path / 'raw_ephys_data' / f'{self.this_probe}_preprocessed_temp')
         
