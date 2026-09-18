@@ -428,7 +428,6 @@ class Pipeline:
         
         # Detect peaks
         peak_inds, peak_props = find_peaks(mean_power,
-                                           height=self.settings['PEAK_THRESHOLD'],
                                            prominence=self.settings['PEAK_THRESHOLD'],)
         peak_freqs = f[peak_inds]
         keep_peaks = peak_freqs > 2000 # only select high frequency peaks
