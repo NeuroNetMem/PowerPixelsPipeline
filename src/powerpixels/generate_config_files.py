@@ -111,7 +111,9 @@ def main():
             "minAmplitude": 40,
             "minSNR": 5,
             "isoDmin": 20,
-            "lratioMax": 0.3
+            "lratioMax": 0.3,
+            "joblib_n_jobs": -1,
+            "joblib_backend_preference": "processes"
         }
         with open(bombcell_file, 'w') as outfile:
             outfile.write(json.dumps(bombcell_dict, indent=4))
