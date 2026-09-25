@@ -511,11 +511,7 @@ class Pipeline:
             logf = open(self.session_path / f'{self.this_probe}_error_log.txt', 'w')
             logf.write(str(err))
             logf.close()
-            
-            # In case of an error: delete empty sorting directory 
-            if self.sorter_path.is_dir():
-                shutil.rmtree(self.sorter_path)
-            
+                        
             return None
         
         return sort
